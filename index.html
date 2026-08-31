@@ -6,174 +6,52 @@
 <title>バトル・ザ・ブレインロット</title>
 <style>
 *{box-sizing:border-box}
-body{
-  margin:0;
-  font-family:Arial,"Noto Sans JP",sans-serif;
-  background:#111;
-  color:#fff;
-  min-height:100vh;
-}
+body{margin:0;font-family:Arial,"Noto Sans JP",sans-serif;background:#111;color:#fff;min-height:100vh}
 button{font:inherit;cursor:pointer}
 #app{max-width:1100px;margin:auto;padding:12px}
-.panel{
-  background:#202020;
-  border:2px solid #444;
-  border-radius:14px;
-  padding:12px;
-  margin-bottom:12px;
-}
+.panel{background:#202020;border:2px solid #444;border-radius:14px;padding:12px;margin-bottom:12px}
 h1,h2,h3{margin:5px 0 10px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.enemy-area{
-  display:grid;
-  grid-template-columns:1fr 1.2fr;
-  gap:12px;
-}
-.enemy-image{
-  width:100%;
-  height:260px;
-  object-fit:contain;
-  background:#090909;
-  border-radius:12px;
-}
-.stat{
-  font-size:18px;
-  margin:7px 0;
-}
-#totalStats{
-  font-size:20px;
-  text-align:center;
-}
-.character-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
-  gap:10px;
-}
-.card{
-  background:#2c2c2c;
-  border:2px solid #555;
-  border-radius:12px;
-  padding:8px;
-  position:relative;
-}
+.enemy-area{display:grid;grid-template-columns:1fr 1.2fr;gap:12px}
+.enemy-image{width:100%;height:260px;object-fit:contain;background:#090909;border-radius:12px}
+.stat{font-size:18px;margin:7px 0}
+#totalStats{font-size:20px;text-align:center}
+.character-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}
+.card{background:#2c2c2c;border:2px solid #555;border-radius:12px;padding:8px;position:relative}
 .card.equipped{border-color:#fff;box-shadow:0 0 0 2px #fff inset}
-.card img{
-  width:100%;
-  height:110px;
-  object-fit:contain;
-  background:#111;
-  border-radius:8px;
-}
+.card img{width:100%;height:110px;object-fit:contain;background:#111;border-radius:8px}
 .card-name{font-weight:bold;margin:5px 0;font-size:14px}
 .card-info{font-size:13px;line-height:1.5}
-.badge{
-  display:inline-block;
-  padding:2px 7px;
-  border-radius:20px;
-  background:#555;
-  font-size:12px;
-}
-.card button,.main-btn{
-  border:0;
-  border-radius:9px;
-  padding:8px 10px;
-  margin-top:7px;
-  background:#444;
-  color:#fff;
-}
+.badge{display:inline-block;padding:2px 7px;border-radius:20px;background:#555;font-size:12px}
+.card button,.main-btn{border:0;border-radius:9px;padding:8px 10px;margin-top:7px;background:#444;color:#fff}
 .main-btn{background:#fff;color:#111;font-weight:bold}
 .card button:hover,.main-btn:hover{opacity:.85}
 .small{font-size:12px;color:#bbb}
-#battleLog{
-  height:90px;
-  overflow:auto;
-  background:#0b0b0b;
-  padding:8px;
-  border-radius:8px;
-  font-size:13px;
-}
-.machine{
-  display:none;
-  margin-top:10px;
-  background:#151515;
-  border:2px solid #555;
-  border-radius:12px;
-  padding:12px;
-}
+.mutation-list{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.mutation{display:inline-block;padding:2px 6px;border-radius:8px;background:#444;font-size:12px}
+#battleLog{height:120px;overflow:auto;background:#0b0b0b;padding:8px;border-radius:8px;font-size:13px}
+.machine{display:none;margin-top:10px;background:#151515;border:2px solid #555;border-radius:12px;padding:12px}
 .machine.open{display:block}
-.machine-grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
-  gap:8px;
-}
-.select-card{
-  border:2px solid #555;
-  background:#292929;
-  color:#fff;
-  border-radius:10px;
-  padding:7px;
-}
-.select-card.selected{border-color:#fff}
+.machine-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px}
+.select-card{border:2px solid #555;background:#292929;color:#fff;border-radius:10px;padding:7px}
+.select-card.selected{border-color:#fff;box-shadow:0 0 0 1px #fff inset}
 .select-card img{width:100%;height:80px;object-fit:contain}
-#toast{
-  position:fixed;
-  left:50%;
-  bottom:18px;
-  transform:translateX(-50%);
-  background:#fff;
-  color:#111;
-  padding:10px 16px;
-  border-radius:10px;
-  font-weight:bold;
-  display:none;
-  z-index:50;
-}
-.modal-bg{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.75);
-  z-index:40;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
+.probability-box{background:#101010;border:1px solid #555;border-radius:10px;padding:10px;margin:8px 0}
+.prob-row{display:flex;justify-content:space-between;padding:3px 0}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#fff;color:#111;padding:10px 16px;border-radius:10px;font-weight:bold;display:none;z-index:50}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:60;align-items:center;justify-content:center;padding:20px}
 .modal-bg.show{display:flex}
-.modal{
-  max-width:430px;
-  width:100%;
-  background:#222;
-  border:2px solid #666;
-  border-radius:15px;
-  padding:18px;
-}
+.modal{max-width:470px;width:100%;max-height:90vh;overflow:auto;background:#222;border:2px solid #666;border-radius:15px;padding:18px}
 .modal button{padding:9px 13px;border:0;border-radius:9px;margin:5px}
 .danger{background:#d33!important;color:#fff}
-#dropOverlay{
-  display:none;
-  position:fixed;
-  inset:0;
-  background:rgba(0,0,0,.82);
-  z-index:35;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-}
+#dropOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:55;align-items:center;justify-content:center;text-align:center}
 #dropOverlay.show{display:flex}
-.drop-box{
-  animation:pop .45s ease;
-  background:#222;
-  border:3px solid #fff;
-  border-radius:20px;
-  padding:25px;
-  max-width:420px;
-}
+.drop-box{animation:pop .45s ease;background:#222;border:3px solid #fff;border-radius:20px;padding:25px;max-width:420px}
 .drop-box img{width:220px;height:180px;object-fit:contain}
+.event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px}
+.event-active{font-weight:bold}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
-@media(max-width:700px){
-  .enemy-area{grid-template-columns:1fr}
-  .enemy-image{height:210px}
-}
+@media(max-width:700px){.enemy-area{grid-template-columns:1fr}.enemy-image{height:210px}}
 </style>
 </head>
 <body>
@@ -183,19 +61,18 @@ h1,h2,h3{margin:5px 0 10px}
     <div class="small">最大3体を装備して自動バトル！</div>
   </div>
 
-  <!-- 1. 敵のステータス -->
+  <div class="event-banner" id="eventBanner"></div>
+
   <div class="panel">
     <h2>① 👹 敵のステータス</h2>
     <div id="enemyStats"></div>
   </div>
 
-  <!-- 2. 敵の画像 -->
   <div class="panel">
     <h2>② 🖼️ 敵の画像</h2>
     <img id="enemyImage" class="enemy-image" alt="敵Brainrot">
   </div>
 
-  <!-- 6. 使用キャラの合計ステータス -->
   <div class="panel">
     <h2>⑥ 📊 使用キャラの合計ステータス</h2>
     <div id="totalStats"></div>
@@ -206,22 +83,20 @@ h1,h2,h3{margin:5px 0 10px}
     <h2>⚔️ バトル</h2>
     <div class="row">
       <button class="main-btn" onclick="startBattle()">▶ バトル開始</button>
-      <button class="main-btn" onclick="stopBattle()">⏸ 停止</button>
       <button class="main-btn" onclick="openMachine()">⚙️ 合体マシン</button>
+      <button class="main-btn" onclick="openFuseMachine()">🔥 ヒューズ</button>
     </div>
     <div id="battleLog"></div>
   </div>
 
-  <!-- 3. 所持キャラ一覧 -->
   <div class="panel">
     <h2>③ 🧠 所持キャラ一覧</h2>
     <div id="characterList" class="character-grid"></div>
   </div>
 
-  <!-- 4. 合体マシン -->
   <div class="panel">
     <h2>④ ⚙️ 合体マシン</h2>
-    <div class="small">同じキャラ・同じ★数の2体を選択して合体できます。最大★10。</div>
+    <div class="small">同じキャラ・同じ★数の2体を選択して合体できます。最大★10。変異は70%で引き継ぎます。</div>
     <div id="machine" class="machine">
       <div id="machineList" class="machine-grid"></div>
       <div class="row" style="margin-top:10px">
@@ -231,7 +106,20 @@ h1,h2,h3{margin:5px 0 10px}
     </div>
   </div>
 
-  <!-- 5. キャラ図鑑 -->
+  <div class="panel">
+    <h2>🔥 ヒューズマシン</h2>
+    <div class="small">キャラを5体投入。合計Fuse Pointで完成キャラの確率が決まります。変異は70%で引き継ぎます。</div>
+    <div id="fuseMachine" class="machine">
+      <div id="fuseSelectionInfo"></div>
+      <div id="fuseProbability" class="probability-box"></div>
+      <div id="fuseList" class="machine-grid"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="main-btn" onclick="fuseMachineExecute()">🔥 合成する</button>
+        <button class="main-btn" onclick="closeFuseMachine()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <div class="panel">
     <h2>⑤ 📖 キャラ図鑑</h2>
     <div id="encyclopedia" class="character-grid"></div>
@@ -262,17 +150,54 @@ h1,h2,h3{margin:5px 0 10px}
 /*
   セーブキー固定：
   "battleTheBrainrotSave"
+
+  現行仕様:
+  - 味方HPは基本HP×7
+  - 最大3体装備
+  - 合体マシン: 同キャラ・同★を2体、★10まで
+  - ヒューズ: 5体必須、Fuse Pointで確率決定
+  - 変異: イベント中、敵撃破時30%で付与
+  - 合体/ヒューズの変異引き継ぎ70%
+  - 停止ボタンは仕様上削除
 */
+
 const SAVE_KEY = "battleTheBrainrotSave";
 
+const MUTATIONS = {
+  fire:  {name:"⚡️変異", key:"fire"},
+  rain:  {name:"🌧変異", key:"rain"},
+  sun:   {name:"☀️変異", key:"sun"},
+  snow:  {name:"⛄️変異", key:"snow"},
+  demon: {name:"😈悪魔変異", key:"demon"}
+};
+
 const characters = [
-  {id:"buruburu", name:"ブルブルパタピム", rarity:"コモン", hp:10, power:10, image:"IMG_3216.jpeg", drop:1},
-  {id:"tralalero", name:"トララレロトラララ", rarity:"コモン", hp:15, power:7, image:"IMG_3214.jpeg", drop:1},
-  {id:"tung", name:"トゥントゥントゥンサフール", rarity:"コモン", hp:7, power:13, image:"IMG_3215.jpeg", drop:1},
-  {id:"job", name:"ジョブジョブサフール", rarity:"レア", hp:15, power:15, image:"IMG_3220.png", drop:.30},
-  {id:"garama", name:"ガラマ＆マドゥンドゥン", rarity:"レア", hp:14, power:16, image:"IMG_3219.png", drop:.30},
-  {id:"aaa", name:"AAAサフール", rarity:"ゴット", hp:20, power:15, image:"IMG_3218.png", drop:.05},
-  {id:"bros", name:"ロスブロス", rarity:"ゴット", hp:17, power:18, image:"IMG_3217.webp", drop:.05}
+  {id:"buruburu", name:"ブルブルパタピム", rarity:"コモン", hp:10, power:10, image:"IMG_3216.jpeg", drop:1, fusePoint:1},
+  {id:"tralalero", name:"トララレロトラララ", rarity:"コモン", hp:15, power:7, image:"IMG_3214.jpeg", drop:1, fusePoint:1},
+  {id:"tung", name:"トゥントゥントゥンサフール", rarity:"コモン", hp:7, power:13, image:"IMG_3215.jpeg", drop:1, fusePoint:1},
+  {id:"job", name:"ジョブジョブサフール", rarity:"レア", hp:15, power:15, image:"IMG_3220.png", drop:.30, fusePoint:2},
+  {id:"garama", name:"ガラマ＆マドゥンドゥン", rarity:"レア", hp:14, power:16, image:"IMG_3219.png", drop:.30, fusePoint:2},
+  {id:"aaa", name:"AAAサフール", rarity:"ゴット", hp:20, power:15, image:"IMG_3218.png", drop:.05, fusePoint:5},
+  {id:"bros", name:"ロスブロス", rarity:"ゴット", hp:17, power:18, image:"IMG_3217.webp", drop:.05, fusePoint:5},
+  {id:"pakurah", name:"パクラフマット", rarity:"シークレット", hp:30, power:24, image:"IMG_3226.webp", drop:.50, fusePoint:10, secretRate:50},
+  {id:"swagmango", name:"スワッグマンゴー", rarity:"シークレット", hp:35, power:26, image:"IMG_3227.jpeg", drop:.35, fusePoint:13, secretRate:35},
+  {id:"spaghetti", name:"スパゲッティトイレ", rarity:"シークレット", hp:45, power:33, image:"IMG_3228.webp", drop:.15, fusePoint:20, secretRate:12},
+  {id:"caneloni", name:"カネローニドラゴーニ", rarity:"シークレット", hp:75, power:50, image:"IMG_3229.jpeg", drop:.03, fusePoint:30, secretRate:3}
+];
+
+const SECRET_RATES = [
+  {id:"pakurah", rate:50},
+  {id:"swagmango", rate:35},
+  {id:"spaghetti", rate:12},
+  {id:"caneloni", rate:3}
+];
+
+const FUSE_TABLE = [
+  {min:1,max:5, rows:[["job",50],["garama",50]]},
+  {min:6,max:10, rows:[["job",50],["garama",43],["aaa",7]]},
+  {min:11,max:25, rows:[["bros",50],["aaa",46],["pakurah",4]]},
+  {min:26,max:40, rows:[["bros",10],["pakurah",70],["swagmango",19],["spaghetti",1]]},
+  {min:41,max:Infinity, rows:[["pakurah",20],["swagmango",75],["spaghetti",5]]}
 ];
 
 let inventory = [];
@@ -282,63 +207,157 @@ let battleTimer = null;
 let enemyTimer = null;
 let battleRunning = false;
 let machineSelection = [];
+let fuseSelection = [];
 let battleHP = {};
+let eventTimer = null;
+
+function uid(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  return "uid_"+Date.now()+"_"+Math.random().toString(36).slice(2);
+}
 
 function defaultInventory(){
   return [
-    {uid:crypto.randomUUID(), id:"buruburu", star:0},
-    {uid:crypto.randomUUID(), id:"tralalero", star:0},
-    {uid:crypto.randomUUID(), id:"tung", star:0}
+    {uid:uid(),id:"buruburu",star:0,mutations:[]},
+    {uid:uid(),id:"tralalero",star:0,mutations:[]},
+    {uid:uid(),id:"tung",star:0,mutations:[]}
   ];
 }
 
+function normalizeItem(item){
+  return {
+    uid:item.uid || uid(),
+    id:item.id,
+    star:Number.isFinite(Number(item.star)) ? Math.max(0,Math.min(10,Number(item.star))) : 0,
+    mutations:Array.isArray(item.mutations) ? [...new Set(item.mutations.filter(x=>MUTATIONS[x]))] : []
+  };
+}
+
 function saveGame(){
-  const data = {inventory, equipped};
-  localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  const data={inventory,equipped};
+  localStorage.setItem(SAVE_KEY,JSON.stringify(data));
 }
 
 function loadGame(){
   try{
-    const raw = localStorage.getItem(SAVE_KEY);
+    const raw=localStorage.getItem(SAVE_KEY);
     if(!raw){
-      inventory = defaultInventory();
-      equipped = inventory.map(x=>x.uid);
+      inventory=defaultInventory();
+      equipped=inventory.map(x=>x.uid);
       saveGame();
-      log("🎁 初回プレイ！コモン3種を獲得！");
+      setTimeout(()=>log("🎁 初回プレイ！コモン3種を獲得！"),0);
     }else{
-      const data = JSON.parse(raw);
-      inventory = Array.isArray(data.inventory) ? data.inventory : defaultInventory();
-      equipped = Array.isArray(data.equipped) ? data.equipped : [];
+      const data=JSON.parse(raw);
+      inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(x=>getCharacter(x.id)) : defaultInventory();
+      equipped=Array.isArray(data.equipped) ? data.equipped.filter(uid=>inventory.some(x=>x.uid===uid)) : [];
+      saveGame();
     }
   }catch(e){
-    inventory = defaultInventory();
-    equipped = inventory.map(x=>x.uid);
+    inventory=defaultInventory();
+    equipped=inventory.map(x=>x.uid);
     saveGame();
   }
 }
 
-function getCharacter(id){
-  return characters.find(c=>c.id===id);
+function getCharacter(id){return characters.find(c=>c.id===id)}
+function getOwned(uid){return inventory.find(x=>x.uid===uid)}
+
+function placeholderImage(c){
+  const text=encodeURIComponent((c.rarity==="シークレット"?"🕵️ ":"")+"🧠 "+c.name);
+  return "data:image/svg+xml;charset=UTF-8,"+
+    "<svg xmlns='http://www.w3.org/2000/svg' width='500' height='350'>"+
+    "<rect width='100%' height='100%' fill='%23101010'/>"+
+    "<text x='50%' y='45%' fill='white' font-size='30' text-anchor='middle'>"+text+"</text>"+
+    "<text x='50%' y='62%' fill='%23aaaaaa' font-size='18' text-anchor='middle'>画像未設定</text></svg>";
 }
 
-function getOwned(uid){
-  return inventory.find(x=>x.uid===uid);
+function imageSrc(c){return c.image || placeholderImage(c)}
+
+function mutationNames(muts){
+  return (muts||[]).map(k=>MUTATIONS[k]?.name||k);
+}
+
+function mutationHTML(muts){
+  if(!muts || !muts.length) return "";
+  return "<div class='mutation-list'>"+mutationNames(muts).map(x=>"<span class='mutation'>"+x+"</span>").join("")+"</div>";
 }
 
 function statsOf(item){
   const c=getCharacter(item.id);
   return {
-    hp:(c.hp + item.star*2) * 7,
+    hp:(c.hp + item.star*2)*7,
     power:c.power + item.star*2
   };
 }
 
 function render(){
+  renderEventBanner();
   renderEnemy();
   renderTotals();
   renderInventory();
   renderEncyclopedia();
   renderMachine();
+  renderFuseMachine();
+}
+
+function renderEventBanner(){
+  const box=document.getElementById("eventBanner");
+  const events=getActiveEvents();
+  if(!events.length){
+    box.innerHTML="🕒 <b>変異イベントなし</b>　現在は通常状態です。";
+    return;
+  }
+  box.innerHTML="<span class='event-active'>🔥 変異イベント中！ "+events.map(e=>e.name).join(" / ")+"</span><br>"+
+    "<span class='small'>敵撃破時、30%で変異付与。複数変異も発生します。</span>";
+}
+
+function getActiveEvents(now=new Date()){
+  const h=now.getHours(), m=now.getMinutes(), s=now.getSeconds();
+  const minute=h*60+m+s/60;
+  const active=[];
+  // 13:00〜13:02
+  if(minute>=13*60 && minute<13*60+2) active.push(MUTATIONS.demon);
+  // 16:00〜16:15
+  if(minute>=16*60 && minute<16*60+15) active.push(MUTATIONS.sun);
+  // 16:30〜16:45
+  if(minute>=16*60+30 && minute<16*60+45) active.push(MUTATIONS.rain);
+  // 17:00〜17:15
+  if(minute>=17*60 && minute<17*60+15) active.push(MUTATIONS.fire);
+  // 18:00〜18:15
+  if(minute>=18*60 && minute<18*60+15) active.push(MUTATIONS.snow);
+  // 19:00〜19:15
+  if(minute>=19*60 && minute<19*60+15) active.push(MUTATIONS.sun,MUTATIONS.rain);
+  // 20:00〜20:15
+  if(minute>=20*60 && minute<20*60+15) active.push(MUTATIONS.fire,MUTATIONS.snow);
+  // 20:30〜20:45
+  if(minute>=20*60+30 && minute<20*60+45) active.push(MUTATIONS.sun,MUTATIONS.rain,MUTATIONS.fire,MUTATIONS.snow);
+  return active;
+}
+
+function mutationKeyPool(){
+  return getActiveEvents().map(x=>x.key);
+}
+
+function rollMutations(){
+  const pool=mutationKeyPool();
+  if(!pool.length) return [];
+  if(Math.random()>=0.30) return [];
+
+  // 30%の変異付与判定に成功した後、
+  // 2/3/4個の確率は確定値。残りは1個。
+  let count=1;
+  const r=Math.random()*100;
+  if(r<2) count=4;
+  else if(r<8) count=3;
+  else if(r<23) count=2;
+  count=Math.min(count,pool.length);
+
+  return [...pool].sort(()=>Math.random()-.5).slice(0,count);
+}
+
+function inheritMutations(items){
+  const all=[...new Set(items.flatMap(x=>x.mutations||[]))];
+  return all.filter(key=>Math.random()<0.70);
 }
 
 function renderEnemy(){
@@ -353,8 +372,9 @@ function renderEnemy(){
     "<div class='stat'>🧠 "+enemy.name+"</div>"+
     "<div class='stat'>❤️ HP：<b>"+enemy.currentHP+" / "+enemy.hp+"</b></div>"+
     "<div class='stat'>⚔️ 火力：<b>"+enemy.power+"</b></div>"+
-    "<div class='stat'>⭐ "+enemy.rarity+"</div>";
-  img.src=enemy.image;
+    "<div class='stat'>⭐ "+enemy.rarity+"</div>"+
+    mutationHTML(enemy.mutations);
+  img.src=imageSrc(getCharacter(enemy.id));
 }
 
 function renderTotals(){
@@ -365,20 +385,15 @@ function renderTotals(){
     const s=statsOf(item);
     const c=getCharacter(item.id);
     hp+=s.hp; power+=s.power;
-    names.push(c.name+" ★"+item.star);
+    names.push(c.name+" ★"+item.star+(item.mutations?.length?" "+mutationNames(item.mutations).join(" "):""));
   }
-  document.getElementById("totalStats").innerHTML=
-    "❤️ HP：<b>"+hp+"</b>　⚔️ 火力：<b>"+power+"</b>";
-  document.getElementById("equippedNames").textContent=
-    names.length ? "装備中： "+names.join(" / ") : "装備なし";
+  document.getElementById("totalStats").innerHTML="❤️ HP：<b>"+hp+"</b>　⚔️ 火力：<b>"+power+"</b>";
+  document.getElementById("equippedNames").textContent=names.length?"装備中： "+names.join(" / "):"装備なし";
 }
 
 function renderInventory(){
   const box=document.getElementById("characterList");
-  if(!inventory.length){
-    box.innerHTML="<div class='small'>所持キャラなし</div>";
-    return;
-  }
+  if(!inventory.length){box.innerHTML="<div class='small'>所持キャラなし</div>";return}
   box.innerHTML="";
   inventory.forEach(item=>{
     const c=getCharacter(item.id);
@@ -387,12 +402,13 @@ function renderInventory(){
     const div=document.createElement("div");
     div.className="card"+(isEq?" equipped":"");
     div.innerHTML=
-      "<img src='"+c.image+"' alt='"+c.name+"'>"+
+      "<img src='"+imageSrc(c)+"' alt='"+c.name+"'>"+
       "<div class='card-name'>"+c.name+"</div>"+
       "<div class='card-info'>⭐ ★"+item.star+"<br>レア度："+c.rarity+
-      "<br>❤️ HP："+s.hp+"<br>⚔️ 火力："+s.power+"</div>"+
-      "<button onclick=\"toggleEquip('"+item.uid+"')\">"+
-      (isEq?"装備解除":"装備")+"</button>"+
+      "<br>❤️ HP："+s.hp+"<br>⚔️ 火力："+s.power+
+      "<br>🔥 Fuse P："+c.fusePoint+"</div>"+
+      mutationHTML(item.mutations)+
+      "<button onclick=\"toggleEquip('"+item.uid+"')\">"+(isEq?"装備解除":"装備")+"</button>"+
       "<button onclick=\"sellCharacter('"+item.uid+"')\" class='danger'>売却</button>";
     box.appendChild(div);
   });
@@ -406,9 +422,9 @@ function renderEncyclopedia(){
     const div=document.createElement("div");
     div.className="card";
     div.innerHTML=found
-      ? "<img src='"+c.image+"' alt='"+c.name+"'><div class='card-name'>"+c.name+
+      ? "<img src='"+imageSrc(c)+"' alt='"+c.name+"'><div class='card-name'>"+c.name+
         "</div><div class='card-info'>⭐ "+c.rarity+"<br>❤️ HP："+c.hp+
-        "<br>⚔️ 火力："+c.power+"</div>"
+        "<br>⚔️ 火力："+c.power+"<br>🔥 Fuse P："+c.fusePoint+"</div>"
       : "<div style='height:110px;display:flex;align-items:center;justify-content:center;font-size:45px'>❓</div>"+
         "<div class='card-name'>？？？</div><div class='card-info'>未入手</div>";
     box.appendChild(div);
@@ -416,71 +432,143 @@ function renderEncyclopedia(){
 }
 
 function openMachine(){
+  if(battleRunning){toast("バトル中は合体できません");return}
   document.getElementById("machine").classList.add("open");
   machineSelection=[];
   renderMachine();
 }
-
 function closeMachine(){
   document.getElementById("machine").classList.remove("open");
   machineSelection=[];
 }
-
 function renderMachine(){
   const box=document.getElementById("machineList");
-  if(!box) return;
+  if(!box)return;
   box.innerHTML="";
   inventory.forEach(item=>{
     const c=getCharacter(item.id);
     const div=document.createElement("button");
     div.className="select-card"+(machineSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+c.image+"'><b>"+c.name+"</b><br>★"+item.star;
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+mutationHTML(item.mutations);
     div.onclick=()=>selectForFusion(item.uid);
     box.appendChild(div);
   });
 }
-
 function selectForFusion(uid){
-  if(machineSelection.includes(uid)){
-    machineSelection=machineSelection.filter(x=>x!==uid);
-  }else{
+  if(machineSelection.includes(uid)) machineSelection=machineSelection.filter(x=>x!==uid);
+  else{
     if(machineSelection.length>=2) machineSelection=[];
     machineSelection.push(uid);
   }
   renderMachine();
 }
-
 function fuseSelected(){
-  if(machineSelection.length!==2){
-    toast("同じキャラ・同じ★数を2体選択してください");
-    return;
-  }
-  const a=getOwned(machineSelection[0]);
-  const b=getOwned(machineSelection[1]);
-  if(!a||!b) return;
-  if(a.id!==b.id){
-    toast("同じキャラ同士でのみ合体できます");
-    return;
-  }
-  if(a.star!==b.star){
-    toast("同じ★数同士でのみ合体できます");
-    return;
-  }
-  if(a.star>=10){
-    toast("★10が最大です");
-    return;
-  }
+  if(machineSelection.length!==2){toast("同じキャラ・同じ★数を2体選択してください");return}
+  const a=getOwned(machineSelection[0]),b=getOwned(machineSelection[1]);
+  if(!a||!b)return;
+  if(a.id!==b.id){toast("同じキャラ同士でのみ合体できます");return}
+  if(a.star!==b.star){toast("同じ★数同士でのみ合体できます");return}
+  if(a.star>=10){toast("★10が最大です");return}
+
   const newStar=a.star+1;
-  inventory=inventory.filter(x=>x.uid!==a.uid && x.uid!==b.uid);
-  equipped=equipped.filter(x=>x!==a.uid && x!==b.uid);
-  delete battleHP[a.uid];
-  delete battleHP[b.uid];
-  const newItem={uid:crypto.randomUUID(),id:a.id,star:newStar};
+  const inherited=inheritMutations([a,b]);
+  inventory=inventory.filter(x=>x.uid!==a.uid&&x.uid!==b.uid);
+  equipped=equipped.filter(x=>x!==a.uid&&x!==b.uid);
+  delete battleHP[a.uid];delete battleHP[b.uid];
+
+  const newItem={uid:uid(),id:a.id,star:newStar,mutations:inherited};
   inventory.push(newItem);
   saveGame();
   machineSelection=[];
   render();
-  toast("✨ "+getCharacter(a.id).name+" が★"+newStar+"になりました！");
+  toast("✨ "+getCharacter(a.id).name+" が★"+newStar+"になりました！"+(inherited.length?" 🧬変異引き継ぎ！":""));
+}
+
+function openFuseMachine(){
+  if(battleRunning){toast("バトル中はヒューズできません");return}
+  document.getElementById("fuseMachine").classList.add("open");
+  fuseSelection=[];
+  renderFuseMachine();
+}
+function closeFuseMachine(){
+  document.getElementById("fuseMachine").classList.remove("open");
+  fuseSelection=[];
+}
+function fuseTableFor(points){
+  return FUSE_TABLE.find(t=>points>=t.min&&points<=t.max)||FUSE_TABLE[FUSE_TABLE.length-1];
+}
+function fuseProbabilities(points){
+  return fuseTableFor(points).rows.map(([id,rate])=>({id,rate,c:getCharacter(id)}));
+}
+function renderFuseMachine(){
+  const box=document.getElementById("fuseList");
+  if(!box)return;
+  const points=fuseSelection.reduce((sum,uid)=>{
+    const item=getOwned(uid);return sum+(item?getCharacter(item.id).fusePoint:0);
+  },0);
+  document.getElementById("fuseSelectionInfo").innerHTML=
+    "<b>投入："+fuseSelection.length+" / 5体</b>　🔥 合計Fuse Point：<b>"+points+"P</b>";
+
+  const probs=fuseProbabilities(Math.max(1,points));
+  document.getElementById("fuseProbability").innerHTML=
+    "<b>🎯 合成結果の確率</b>"+
+    probs.map(x=>"<div class='prob-row'><span>"+x.c.name+"</span><b>"+x.rate+"%</b></div>").join("")+
+    "<div class='small'>※41P以上では現時点でスパゲッティトイレは対象外。</div>";
+
+  box.innerHTML="";
+  inventory.forEach(item=>{
+    const c=getCharacter(item.id);
+    const div=document.createElement("button");
+    div.className="select-card"+(fuseSelection.includes(item.uid)?" selected":"");
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+"<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations);
+    div.onclick=()=>selectForFuseMachine(item.uid);
+    box.appendChild(div);
+  });
+}
+function selectForFuseMachine(uid){
+  if(fuseSelection.includes(uid)){
+    fuseSelection=fuseSelection.filter(x=>x!==uid);
+  }else{
+    if(fuseSelection.length>=5){toast("ヒューズは5体までです");return}
+    fuseSelection.push(uid);
+  }
+  renderFuseMachine();
+}
+function weightedChoice(rows){
+  const r=Math.random()*100;
+  let acc=0;
+  for(const [id,rate] of rows){
+    acc+=rate;
+    if(r<acc)return id;
+  }
+  return rows[rows.length-1][0];
+}
+function fuseMachineExecute(){
+  if(fuseSelection.length!==5){toast("ヒューズには5体必要です");return}
+  const inputs=fuseSelection.map(getOwned).filter(Boolean);
+  if(inputs.length!==5){toast("選択キャラを確認してください");return}
+
+  const points=inputs.reduce((sum,item)=>sum+getCharacter(item.id).fusePoint,0);
+  const table=fuseTableFor(points);
+  const resultId=weightedChoice(table.rows);
+  const inherited=inheritMutations(inputs);
+
+  const selectedIds=new Set(fuseSelection);
+  inventory=inventory.filter(x=>!selectedIds.has(x.uid));
+  equipped=equipped.filter(x=>!selectedIds.has(x));
+  fuseSelection.forEach(x=>delete battleHP[x]);
+
+  const newItem={uid:uid(),id:resultId,star:0,mutations:inherited};
+  inventory.push(newItem);
+  saveGame();
+  const result=getCharacter(resultId);
+  fuseSelection=[];
+  render();
+  showModal(
+    "🔥 ヒューズ成功！",
+    result.name+" を獲得！\n合計Fuse Point："+points+"P\n変異："+(inherited.length?mutationNames(inherited).join(" / "):"なし"),
+    [["OK",closeModal]]
+  );
 }
 
 function toggleEquip(uid){
@@ -488,72 +576,39 @@ function toggleEquip(uid){
     equipped=equipped.filter(x=>x!==uid);
     delete battleHP[uid];
   }else{
-    if(equipped.length>=3){
-      toast("装備できるのは3体までです");
-      return;
-    }
+    if(equipped.length>=3){toast("装備できるのは3体までです");return}
     equipped.push(uid);
   }
-  saveGame();
-  render();
+  saveGame();render();
 }
 
 function sellCharacter(uid){
-  const item=getOwned(uid);
-  if(!item) return;
+  const item=getOwned(uid);if(!item)return;
   const c=getCharacter(item.id);
   if(c.rarity==="ゴット"){
-    confirmTwoStep(
-      "ゴットキャラの売却",
-      c.name+" ★"+item.star+" を売却しますか？",
-      ()=>{
-        confirmTwoStep(
-          "最終確認",
-          "本当に売却しますか？この操作は元に戻せません。",
-          ()=>doSell(uid)
-        );
-      }
-    );
-  }else{
-    confirmOne(
-      "キャラの売却",
-      c.name+" ★"+item.star+" を売却しますか？",
-      ()=>doSell(uid)
-    );
-  }
+    confirmTwoStep("ゴットキャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>{
+      confirmTwoStep("最終確認","本当に売却しますか？この操作は元に戻せません。",()=>doSell(uid));
+    });
+  }else confirmOne("キャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>doSell(uid));
 }
-
 function doSell(uid){
   inventory=inventory.filter(x=>x.uid!==uid);
   equipped=equipped.filter(x=>x!==uid);
   delete battleHP[uid];
-  saveGame();
-  render();
-  toast("🗑️ 売却しました");
+  saveGame();render();toast("🗑️ 売却しました");
 }
-
 function confirmOne(title,text,ok){
-  showModal(title,text,
-    [["キャンセル",closeModal],["売却する",()=>{closeModal();ok();}]]
-  );
+  showModal(title,text,[["キャンセル",closeModal],["売却する",()=>{closeModal();ok()}]]);
 }
-
 function confirmTwoStep(title,text,ok){
-  showModal(title,text,
-    [["キャンセル",closeModal],["確認する",()=>{closeModal();ok();}]]
-  );
+  showModal(title,text,[["キャンセル",closeModal],["確認する",()=>{closeModal();ok()}]]);
 }
-
 function showModal(title,text,buttons){
   document.getElementById("modalTitle").textContent=title;
   document.getElementById("modalText").textContent=text;
-  const box=document.getElementById("modalButtons");
-  box.innerHTML="";
+  const box=document.getElementById("modalButtons");box.innerHTML="";
   buttons.forEach(([label,fn])=>{
-    const b=document.createElement("button");
-    b.textContent=label;
-    b.onclick=fn;
-    box.appendChild(b);
+    const b=document.createElement("button");b.textContent=label;b.onclick=fn;box.appendChild(b);
   });
   document.getElementById("modalBg").classList.add("show");
 }
@@ -561,20 +616,27 @@ function closeModal(){document.getElementById("modalBg").classList.remove("show"
 
 function weightedRarity(){
   const r=Math.random()*100;
-  if(r<70) return "コモン";
-  if(r<90) return "レア";
-  return "ゴット";
+  if(r<70)return "コモン";
+  if(r<90)return "レア";
+  if(r<99)return "ゴット";
+  return "シークレット";
 }
-
+function pickSecret(){
+  return weightedChoice(SECRET_RATES);
+}
 function createEnemy(){
   const rarity=weightedRarity();
-  const pool=characters.filter(c=>c.rarity===rarity);
-  const c=pool[Math.floor(Math.random()*pool.length)];
+  let c;
+  if(rarity==="シークレット"){
+    c=getCharacter(pickSecret());
+  }else{
+    const pool=characters.filter(x=>x.rarity===rarity);
+    c=pool[Math.floor(Math.random()*pool.length)];
+  }
   enemy={
     id:c.id,name:c.name,rarity:c.rarity,image:c.image,
-    hp:c.hp*23,
-    currentHP:c.hp*23,
-    power:(c.power/10)*10
+    hp:c.hp*23,currentHP:c.hp*23,power:c.power,
+    mutations:[]
   };
   renderEnemy();
 }
@@ -583,16 +645,13 @@ function resetBattleHP(){
   battleHP={};
   equipped.forEach(uid=>{
     const item=getOwned(uid);
-    if(item) battleHP[uid]=statsOf(item).hp;
+    if(item)battleHP[uid]=statsOf(item).hp;
   });
 }
 
 function startBattle(){
-  if(battleRunning) return;
-  if(equipped.length===0){
-    toast("キャラを1体以上装備してください");
-    return;
-  }
+  if(battleRunning)return;
+  if(equipped.length===0){toast("キャラを1体以上装備してください");return}
   battleRunning=true;
   resetBattleHP();
   createEnemy();
@@ -603,64 +662,41 @@ function startBattle(){
 
 function stopBattle(){
   battleRunning=false;
-  clearInterval(battleTimer);
-  clearInterval(enemyTimer);
-  battleTimer=null;
-  enemyTimer=null;
-  log("⏸ バトル停止");
+  clearInterval(battleTimer);clearInterval(enemyTimer);
+  battleTimer=null;enemyTimer=null;
 }
 
 function playerAttack(){
-  if(!battleRunning||!enemy) return;
+  if(!battleRunning||!enemy)return;
   let damage=0;
   equipped.forEach(uid=>{
     const item=getOwned(uid);
-    if(item && battleHP[uid]>0) damage+=statsOf(item).power;
+    if(item&&battleHP[uid]>0)damage+=statsOf(item).power;
   });
-  if(damage<=0) return;
+  if(damage<=0)return;
   enemy.currentHP-=damage;
   log("⚔️ 味方が合計"+damage+"ダメージ！");
-  if(enemy.currentHP<=0){
-    winEnemy();
-    return;
-  }
+  if(enemy.currentHP<=0){winEnemy();return}
   renderEnemy();
 }
 
 function enemyAttack(){
-  if(!battleRunning||!enemy) return;
-
-  const active=equipped.map(uid=>getOwned(uid)).filter(item=>item && battleHP[item.uid]>0);
-  if(!active.length){
-    loseBattle();
-    return;
-  }
-
+  if(!battleRunning||!enemy)return;
+  const active=equipped.map(uid=>getOwned(uid)).filter(item=>item&&battleHP[item.uid]>0);
+  if(!active.length){loseBattle();return}
   active.forEach(target=>{
     battleHP[target.uid]-=enemy.power;
     log("👹 "+enemy.name+" → "+getCharacter(target.id).name+" に "+enemy.power+" ダメージ！");
   });
-
   renderBattleHP();
-
   const alive=active.filter(target=>battleHP[target.uid]>0);
-
-  if(alive.length===0){
-    loseBattle();
-    return;
-  }
-
+  if(alive.length===0){loseBattle();return}
   active.forEach(target=>{
-    if(battleHP[target.uid]<=0){
-      log("💥 "+getCharacter(target.id).name+" が倒された！");
-    }
+    if(battleHP[target.uid]<=0)log("💥 "+getCharacter(target.id).name+" が倒された！");
   });
 }
 
-function renderBattleHP(){
-  renderTotals();
-  renderInventory();
-}
+function renderBattleHP(){renderTotals();renderInventory()}
 
 function loseBattle(){
   stopBattle();
@@ -670,28 +706,36 @@ function loseBattle(){
 
 function winEnemy(){
   const defeated=getCharacter(enemy.id);
-  log("🏆 "+defeated.name+" を撃破！");
   stopBattle();
+  log("🏆 "+defeated.name+" を撃破！");
+
+  // 変異イベントは「敵を倒した瞬間」に判定
+  const mutations=rollMutations();
+  if(mutations.length){
+    log("🧬 "+mutationNames(mutations).join(" / ")+" が発生！");
+  }
+
   const roll=Math.random();
   if(roll<defeated.drop){
-    const item={uid:crypto.randomUUID(),id:defeated.id,star:0};
+    const item={uid:uid(),id:defeated.id,star:0,mutations};
     inventory.push(item);
     saveGame();
-    showDrop(defeated);
+    showDrop(defeated,item);
   }else{
+    if(mutations.length) log("🧬 変異は付いたが、ドロップしませんでした。");
     toast("😢 ドロップしませんでした");
     setTimeout(()=>startBattle(),500);
   }
 }
 
-function showDrop(c){
-  document.getElementById("dropImage").src=c.image;
+function showDrop(c,item){
+  document.getElementById("dropImage").src=imageSrc(c);
   document.getElementById("dropName").textContent=c.name;
-  document.getElementById("dropInfo").textContent="⭐ "+c.rarity+" を獲得！";
+  document.getElementById("dropInfo").innerHTML=
+    "⭐ "+c.rarity+" を獲得！"+mutationHTML(item.mutations);
   document.getElementById("dropOverlay").classList.add("show");
   render();
 }
-
 function closeDrop(){
   document.getElementById("dropOverlay").classList.remove("show");
   startBattle();
@@ -702,17 +746,19 @@ function log(text){
   box.innerHTML+="<div>"+new Date().toLocaleTimeString()+"　"+text+"</div>";
   box.scrollTop=box.scrollHeight;
 }
-
 function toast(text){
   const t=document.getElementById("toast");
-  t.textContent=text;
-  t.style.display="block";
+  t.textContent=text;t.style.display="block";
   clearTimeout(window.__toast);
   window.__toast=setTimeout(()=>t.style.display="none",1800);
 }
 
+function updateEventLoop(){
+  renderEventBanner();
+}
 loadGame();
 render();
+eventTimer=setInterval(updateEventLoop,1000);
 </script>
 </body>
 </html>
