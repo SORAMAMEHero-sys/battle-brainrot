@@ -50,35 +50,11 @@ h1,h2,h3{margin:5px 0 10px}
 .drop-box img{width:220px;height:180px;object-fit:contain}
 .event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px}
 .event-active{font-weight:bold}
-.admin-message{
-  display:none;
-  position:fixed;
-  top:12px;
-  left:50%;
-  transform:translateX(-50%);
-  z-index:100;
-  background:#fff;
-  color:#111;
-  border:3px solid #111;
-  border-radius:12px;
-  padding:12px 20px;
-  font-weight:bold;
-  text-align:center;
-  box-shadow:0 4px 18px rgba(0,0,0,.5);
-  max-width:90%;
-}
-.shop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
-.book-card{background:#292929;border:2px solid #555;border-radius:12px;padding:10px}
-.book-card button{width:100%;border:0;border-radius:8px;padding:8px;margin-top:7px;background:#444;color:#fff}
-.book-card button:disabled{opacity:.45;cursor:not-allowed}
-.gold-display{font-size:18px;font-weight:bold;margin-bottom:10px}
-.book-list{font-size:12px;color:#ddd;margin-top:5px;line-height:1.5}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 @media(max-width:700px){.enemy-area{grid-template-columns:1fr}.enemy-image{height:210px}}
 </style>
 </head>
 <body>
-<div id="adminMessage" class="admin-message"></div>
 <div id="app">
   <div class="panel">
     <h1>🧠⚔️ バトル・ザ・ブレインロット</h1>
@@ -144,11 +120,11 @@ h1,h2,h3{margin:5px 0 10px}
     </div>
   </div>
 
+
   <div class="panel">
-    <h2>🛒 スキルの本ショップ</h2>
-    <div id="goldDisplay" class="gold-display">💰 0G</div>
-    <div class="small">本は30分ごとに3冊入れ替わります。好きなキャラに最大3冊まで付けられます。</div>
-    <div id="shopBooks" class="shop-grid" style="margin-top:10px"></div>
+    <h2>🛒 ショップ</h2>
+    <div class="small">📖 スキルの本は3つ並び、30分ごとに入れ替わります。</div>
+    <div id="shopBooks"></div>
   </div>
 
   <div class="panel">
@@ -188,12 +164,7 @@ h1,h2,h3{margin:5px 0 10px}
   - 合体マシン: 同キャラ・同★を2体、★10まで
   - ヒューズ: 5体必須、Fuse Pointで確率決定
   - 変異: イベント中、敵撃破時30%で付与
-  - 通常合体: 本は必ず引き継ぐ
-  - ヒューズ: 本は引き継がない
-  - スキルの本: 1キャラ最大3個、取り消し1000G
-  - ショップ: 本3冊、30分ごとに更新
-  - ゴールド: コモン1G / レア3G / ゴット30G / シークレット150G
-  - 管理者イベント: 毎週日曜18:30〜18:40、Server Luck×5＋全変異
+  - 合体/ヒューズの変異引き継ぎ70%
   - 停止ボタンは仕様上削除
 */
 
@@ -207,23 +178,20 @@ const MUTATIONS = {
   demon: {name:"😈悪魔変異", key:"demon"}
 };
 
-const BOOKS = [
-  {id:"statusResist", name:"状態異常耐性の本", desc:"状態異常の時間を20%カット", price:150, type:"status", value:.20},
-  {id:"attackUp", name:"攻撃力アップの本", desc:"攻撃力1.3倍", price:100, type:"attack", value:1.30},
-  {id:"hpUp", name:"体力アップの本", desc:"体力1.3倍", price:100, type:"hp", value:1.30},
-  {id:"dodge", name:"回避の本", desc:"10%で攻撃を回避", price:200, type:"dodge", value:.10},
-  {id:"megaAttack", name:"極・攻撃力アップの本", desc:"攻撃力1.75倍", price:3000, type:"attack", value:1.75},
-  {id:"megaHP", name:"極・体力アップの本", desc:"体力1.75倍", price:3000, type:"hp", value:1.75},
-  {id:"megaDodge", name:"極・回避の本", desc:"35%で攻撃を回避", price:5500, type:"dodge", value:.35}
-];
+/* 📖 スキルの本
+   🧬変異とは完全に別システム。変異はここには入れない。 */
+const SKILL_BOOKS = {
+  statusResist: {name:"状態異常耐性の本", effect:"状態異常時間20%カット", price:150},
+  attackUp: {name:"攻撃力アップの本", effect:"攻撃力1.3倍", price:100},
+  hpUp: {name:"体力アップの本", effect:"体力1.3倍", price:100},
+  dodge: {name:"回避の本", effect:"回避10%", price:200},
+  extremeAttackUp: {name:"極・攻撃力アップの本", effect:"攻撃力1.75倍", price:3000},
+  extremeHpUp: {name:"極・体力アップの本", effect:"体力1.75倍", price:3000},
+  extremeDodge: {name:"極・回避の本", effect:"回避35%", price:5500}
+};
 
-const GOLD_REWARD = {コモン:1, レア:3, ゴット:30, シークレット:150};
-const ADMIN_EVENT_WEEKLY_START = 18*60+30;
-const ADMIN_EVENT_WEEKLY_END = 18*60+40;
-const ADMIN_ONETIME_DATE = "2026-09-01";
-const ADMIN_ONETIME_START = 5*60+15;
-const ADMIN_ONETIME_END = 5*60+25;
-
+const MAX_BOOKS_PER_CHARACTER = 3;
+const BOOK_CANCEL_COST = 1000;
 
 const characters = [
   {id:"buruburu", name:"ブルブルパタピム", rarity:"コモン", hp:10, power:10, image:"IMG_3216.jpeg", drop:1, fusePoint:1},
@@ -266,12 +234,12 @@ let battleHP = {};
 let eventTimer = null;
 let gold = 0;
 let shopBooks = [];
-let shopRotationKey = ""; 
-let adminEventActive = false;
-let adminEventKey = "";
-let adminMessageTimer = null;
-let adminMessageIndex = 0;
-let adminMessageSequence = null;
+let shopSlot = -1;
+let adminEventState = {
+  active:false,
+  startedKey:"",
+  endSpawnedKey:""
+};
 
 function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -292,12 +260,13 @@ function normalizeItem(item){
     id:item.id,
     star:Number.isFinite(Number(item.star)) ? Math.max(0,Math.min(10,Number(item.star))) : 0,
     mutations:Array.isArray(item.mutations) ? [...new Set(item.mutations.filter(x=>MUTATIONS[x]))] : [],
-    books:Array.isArray(item.books) ? [...new Set(item.books.filter(x=>BOOKS.some(b=>b.id===x)))].slice(0,3) : []
+    books:Array.isArray(item.books) ? [...new Set(item.books.filter(x=>SKILL_BOOKS[x]))].slice(0,MAX_BOOKS_PER_CHARACTER) : []
   };
 }
 
 function saveGame(){
-  const data={inventory,equipped,gold,shopBooks,shopRotationKey};
+  const data={inventory,equipped,gold,shopBooks,shopSlot};
+
   localStorage.setItem(SAVE_KEY,JSON.stringify(data));
 }
 
@@ -313,9 +282,9 @@ function loadGame(){
       const data=JSON.parse(raw);
       inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(x=>getCharacter(x.id)) : defaultInventory();
       equipped=Array.isArray(data.equipped) ? data.equipped.filter(uid=>inventory.some(x=>x.uid===uid)) : [];
-      gold=Number.isFinite(Number(data.gold)) ? Math.max(0,Number(data.gold)) : 0;
-      shopBooks=Array.isArray(data.shopBooks) ? data.shopBooks.filter(id=>BOOKS.some(b=>b.id===id)) : [];
-      shopRotationKey=typeof data.shopRotationKey==="string" ? data.shopRotationKey : "";
+      gold=Number.isFinite(Number(data.gold))?Number(data.gold):0;
+      shopBooks=Array.isArray(data.shopBooks)?data.shopBooks.filter(x=>SKILL_BOOKS[x]):[];
+      shopSlot=Number.isFinite(Number(data.shopSlot))?Number(data.shopSlot):-1;
       saveGame();
     }
   }catch(e){
@@ -348,43 +317,148 @@ function mutationHTML(muts){
   return "<div class='mutation-list'>"+mutationNames(muts).map(x=>"<span class='mutation'>"+x+"</span>").join("")+"</div>";
 }
 
+function bookNames(books){
+  return (books||[]).map(k=>SKILL_BOOKS[k]?.name||k);
+}
+
+function bookHTML(books){
+  if(!books || !books.length) return "";
+  return "<div class='mutation-list'>"+bookNames(books).map(x=>"<span class='mutation'>📖 "+x+"</span>").join("")+"</div>";
+}
+
+function inheritBooksForFusion(a,b){
+  /* ⚙️通常の合体では本を必ず引き継ぐ。重複は1冊にまとめ、最大3冊。 */
+  return [...new Set([...(a.books||[]),...(b.books||[])])].slice(0,MAX_BOOKS_PER_CHARACTER);
+}
+
+function addBookToCharacter(uid,bookKey){
+  const item=getOwned(uid);
+  if(!item || !SKILL_BOOKS[bookKey]) return false;
+  item.books=Array.isArray(item.books)?item.books:[];
+  if(item.books.length>=MAX_BOOKS_PER_CHARACTER){
+    toast("📖 1キャラに付けられる本は3個までです");
+    return false;
+  }
+  item.books.push(bookKey);
+  saveGame();
+  render();
+  return true;
+}
+
+function cancelBook(uid,bookKey){
+  const item=getOwned(uid);
+  if(!item || !(item.books||[]).includes(bookKey)){
+    toast("📖 その本は付いていません");
+    return false;
+  }
+  if(!spendGold(BOOK_CANCEL_COST)){
+    toast("💰 本の取り消しには1000G必要です");
+    return false;
+  }
+  item.books=item.books.filter(x=>x!==bookKey);
+  saveGame();
+  render();
+  toast("📖 本を取り消しました（1000G）");
+  return true;
+}
+
 function statsOf(item){
   const c=getCharacter(item.id);
   let hp=(c.hp + item.star*2)*7;
   let power=c.power + item.star*2;
-  const muts=item.mutations||[];
-  if(muts.includes("rain")) hp*=1.5;
-  if(muts.includes("fire")) power*=1.3;
-  if(muts.includes("sun")) power*=1.5;
-  if(muts.includes("demon")){hp*=1.75;power*=1.75;}
-  if(muts.includes("fire")) hp*=1.3;
-  for(const id of item.books||[]){
-    const b=BOOKS.find(x=>x.id===id);
-    if(!b)continue;
-    if(b.type==="hp") hp*=b.value;
-    if(b.type==="attack") power*=b.value;
+  const books=item.books||[];
+
+  if(books.includes("hpUp")) hp*=1.3;
+  if(books.includes("extremeHpUp")) hp*=1.75;
+  if(books.includes("attackUp")) power*=1.3;
+  if(books.includes("extremeAttackUp")) power*=1.75;
+
+  return {
+    hp:Math.round(hp),
+    power:Math.round(power)
+  };
+}
+
+
+function spendGold(amount){
+  if(gold<amount)return false;
+  gold-=amount;
+  return true;
+}
+
+function refreshShop(){
+  const slot=Math.floor((new Date().getHours()*60+new Date().getMinutes())/30);
+  if(shopSlot===slot && shopBooks.length===3)return;
+  const keys=Object.keys(SKILL_BOOKS);
+  shopBooks=[...keys].sort(()=>Math.random()-.5).slice(0,3);
+  shopSlot=slot;
+  saveGame();
+}
+
+function renderShop(){
+  refreshShop();
+  const box=document.getElementById("shopBooks");
+  if(!box)return;
+
+  let html="<div class='small'>💰 所持ゴールド：<b>"+gold+"G</b></div>";
+  html+="<div class='character-grid' style='margin-top:8px'>";
+  shopBooks.forEach(key=>{
+    const book=SKILL_BOOKS[key];
+    html+="<div class='card'>"+
+      "<div class='card-name'>📖 "+book.name+"</div>"+
+      "<div class='card-info'>"+book.effect+"<br>💰 "+book.price+"G</div>"+
+      "<button onclick=\"buyBook('"+key+"')\">購入</button>"+
+      "</div>";
+  });
+  html+="</div>";
+  box.innerHTML=html;
+}
+
+function buyBook(bookKey){
+  const book=SKILL_BOOKS[bookKey];
+  if(!book)return;
+  if(gold<book.price){
+    toast("💰 ゴールドが足りません");
+    return;
   }
-  return {hp:Math.round(hp),power:Math.round(power)};
+
+  showModal(
+    "📖 スキルの本",
+    book.name+" を誰に付けますか？\n"+book.effect+"\n価格："+book.price+"G",
+    inventory.map(item=>{
+      const c=getCharacter(item.id);
+      const full=(item.books||[]).length>=MAX_BOOKS_PER_CHARACTER;
+      return [
+        c.name+" ★"+item.star+(full?"（本3個）":""),
+        ()=>{
+          closeModal();
+          if(full){
+            toast("📖 そのキャラは本が3個でいっぱいです");
+            return;
+          }
+          if(!spendGold(book.price))return;
+          addBookToCharacter(item.uid,bookKey);
+          toast("📖 "+c.name+" に本を付けました！");
+        }
+      ];
+    }).concat([["キャンセル",closeModal]])
+  );
 }
 
 function render(){
   renderEventBanner();
+  renderShop();
   renderEnemy();
   renderTotals();
   renderInventory();
   renderEncyclopedia();
   renderMachine();
   renderFuseMachine();
-  renderShop();
-  renderGold();
 }
 
 function renderEventBanner(){
   const box=document.getElementById("eventBanner");
-  if(isAdminEvent(new Date())){
-    box.innerHTML="<span class='event-active'>👑 管理者イベント中！ 🍀 Server Luck ×5 ＋ 🧬 全変異</span>";
-    return;
-  }
+  if(adminEventState.active)return;
   const events=getActiveEvents();
   if(!events.length){
     box.innerHTML="🕒 <b>変異イベントなし</b>　現在は通常状態です。";
@@ -418,7 +492,6 @@ function getActiveEvents(now=new Date()){
 }
 
 function mutationKeyPool(){
-  if(isAdminEvent(new Date())) return Object.keys(MUTATIONS);
   return getActiveEvents().map(x=>x.key);
 }
 
@@ -493,7 +566,6 @@ function renderInventory(){
       "<br>🔥 Fuse P："+c.fusePoint+"</div>"+
       mutationHTML(item.mutations)+
       bookHTML(item.books)+
-      "<button onclick=\"manageBooks('"+item.uid+"')\">📖 本</button>"+
       "<button onclick=\"toggleEquip('"+item.uid+"')\">"+(isEq?"装備解除":"装備")+"</button>"+
       "<button onclick=\"sellCharacter('"+item.uid+"')\" class='danger'>売却</button>";
     box.appendChild(div);
@@ -535,7 +607,7 @@ function renderMachine(){
     const c=getCharacter(item.id);
     const div=document.createElement("button");
     div.className="select-card"+(machineSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+mutationHTML(item.mutations);
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFusion(item.uid);
     box.appendChild(div);
   });
@@ -558,7 +630,7 @@ function fuseSelected(){
 
   const newStar=a.star+1;
   const inherited=inheritMutations([a,b]);
-  const inheritedBooks=inheritBooks([a,b]);
+  const inheritedBooks=inheritBooksForFusion(a,b);
   inventory=inventory.filter(x=>x.uid!==a.uid&&x.uid!==b.uid);
   equipped=equipped.filter(x=>x!==a.uid&&x!==b.uid);
   delete battleHP[a.uid];delete battleHP[b.uid];
@@ -568,7 +640,7 @@ function fuseSelected(){
   saveGame();
   machineSelection=[];
   render();
-  toast("✨ "+getCharacter(a.id).name+" が★"+newStar+"になりました！"+(inherited.length?" 🧬変異引き継ぎ！":"")+(inheritedBooks.length?" 📖本も引き継ぎ！":""));
+  toast("✨ "+getCharacter(a.id).name+" が★"+newStar+"になりました！"+(inherited.length?" 🧬変異引き継ぎ！":""));
 }
 
 function openFuseMachine(){
@@ -607,7 +679,7 @@ function renderFuseMachine(){
     const c=getCharacter(item.id);
     const div=document.createElement("button");
     div.className="select-card"+(fuseSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+"<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations);
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+"<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFuseMachine(item.uid);
     box.appendChild(div);
   });
@@ -658,222 +730,6 @@ function fuseMachineExecute(){
   );
 }
 
-
-function bookHTML(bookIds){
-  if(!bookIds || !bookIds.length) return "";
-  return "<div class='book-list'>📖 "+bookIds.map(id=>BOOKS.find(b=>b.id===id)?.name||id).join(" / ")+"</div>";
-}
-
-function inheritBooks(items){
-  const all=[...new Set(items.flatMap(x=>x.books||[]))];
-  return all.slice(0,3);
-}
-
-function bookTarget(uid){
-  const item=getOwned(uid);
-  if(!item)return;
-  const c=getCharacter(item.id);
-  if((item.books||[]).length>=3){
-    showModal("📖 スキルの本",c.name+" は本を3個持っています。取り消す場合は下の本を選択してください。",
-      [["閉じる",closeModal]]);
-    return;
-  }
-  const available=shopBooks.filter(id=>!(item.books||[]).includes(id));
-  if(!available.length){
-    toast("購入できる本がありません");
-    return;
-  }
-  showModal("📖 本を付ける",c.name+" に付ける本を選んでください。",
-    available.map(id=>[BOOKS.find(b=>b.id===id).name,()=>{closeModal();attachBook(uid,id)}]).concat([["閉じる",closeModal]]));
-}
-
-function attachBook(uid,bookId){
-  const item=getOwned(uid);
-  const book=BOOKS.find(b=>b.id===bookId);
-  if(!item||!book)return;
-  item.books=item.books||[];
-  if(item.books.length>=3){toast("1キャラに付けられる本は3個までです");return}
-  if(!shopBooks.includes(bookId)){toast("その本はショップにありません");return}
-  if(gold<book.price){toast("ゴールドが足りません");return}
-  gold-=book.price;
-  item.books.push(bookId);
-  shopBooks=shopBooks.filter(id=>id!==bookId);
-  saveGame();render();toast("📖 "+book.name+" を "+getCharacter(item.id).name+" に付けました！");
-}
-
-function removeBook(uid,bookId){
-  const item=getOwned(uid);
-  if(!item)return;
-  item.books=(item.books||[]).filter(id=>id!==bookId);
-  gold-=1000;
-  saveGame();render();toast("📕 本を取り消しました。1000G消費！");
-}
-
-function manageBooks(uid){
-  const item=getOwned(uid);
-  if(!item)return;
-  if(!(item.books||[]).length){
-    bookTarget(uid);
-    return;
-  }
-  const buttons=item.books.map(id=>{
-    const b=BOOKS.find(x=>x.id===id);
-    return [b.name+" を取り消す",()=>{
-      if(gold<1000){toast("取り消しには1000G必要です");return}
-      closeModal();
-      removeBook(uid,id);
-    }];
-  });
-  buttons.push(["本を追加",()=>{closeModal();bookTarget(uid)}],["閉じる",closeModal]);
-  showModal("📖 "+getCharacter(item.id)+" の本","取り消しには1000G必要です。取り消した本は消滅します。",buttons);
-}
-
-function renderGold(){
-  const box=document.getElementById("goldDisplay");
-  if(box)box.textContent="💰 "+gold+"G";
-}
-
-function shopRotationKeyFor(now=new Date()){
-  const t=new Date(now);
-  t.setSeconds(0,0);
-  t.setMinutes(Math.floor(t.getMinutes()/30)*30);
-  return t.getFullYear()+"-"+t.getMonth()+"-"+t.getDate()+"-"+t.getHours()+"-"+t.getMinutes();
-}
-
-function refreshShop(){
-  const key=shopRotationKeyFor();
-  if(shopRotationKey===key && shopBooks.length===3)return;
-  shopRotationKey=key;
-  const pool=[...BOOKS].sort(()=>Math.random()-.5);
-  shopBooks=pool.slice(0,3).map(b=>b.id);
-  saveGame();
-}
-
-function renderShop(){
-  refreshShop();
-  const box=document.getElementById("shopBooks");
-  if(!box)return;
-  box.innerHTML="";
-  shopBooks.forEach(id=>{
-    const b=BOOKS.find(x=>x.id===id);
-    if(!b)return;
-    const div=document.createElement("div");
-    div.className="book-card";
-    div.innerHTML="<b>📖 "+b.name+"</b><br><span class='small'>"+b.desc+"</span><br><b>💰 "+b.price+"G</b>"+
-      "<button onclick=\"chooseBookTarget('"+b.id+"')\">購入して装備</button>";
-    box.appendChild(div);
-  });
-}
-
-function chooseBookTarget(bookId){
-  const book=BOOKS.find(b=>b.id===bookId);
-  if(!book)return;
-  if(gold<book.price){toast("ゴールドが足りません");return}
-  const candidates=inventory.filter(x=>(x.books||[]).length<3);
-  if(!candidates.length){toast("本を付けられるキャラがいません");return}
-  showModal("📖 "+book.name+" を付ける","付けるキャラを選択してください。",
-    candidates.map(item=>[getCharacter(item.id).name+" ★"+item.star,()=>{closeModal();attachBook(item.uid,bookId)}]).concat([["キャンセル",closeModal]]));
-}
-
-function getServerLuck(){
-  return isAdminEvent(new Date()) ? 5 : 1;
-}
-
-function adminEventKeyFor(now=new Date()){
-  if(now.getFullYear()===2026 && now.getMonth()===8 && now.getDate()===1)return "once-2026-09-01";
-  return now.getFullYear()+"-"+now.getMonth()+"-"+now.getDate()+"-weekly";
-}
-
-function isAdminEvent(now=new Date()){
-  const day=now.getDay();
-  const minute=now.getHours()*60+now.getMinutes()+now.getSeconds()/60;
-  if(day===0 && minute>=ADMIN_EVENT_WEEKLY_START && minute<ADMIN_EVENT_WEEKLY_END)return true;
-  if(now.getFullYear()===2026 && now.getMonth()===8 && now.getDate()===1 &&
-     minute>=ADMIN_ONETIME_START && minute<ADMIN_ONETIME_END)return true;
-  return false;
-}
-
-function adminMessages(){
-  return [
-    "やあ！",
-    "管理者イベントだね😏",
-    "そろそろかな",
-    "一旦2倍ラックと☀️変異を付けるぜ",
-    "よろしくな",
-    "俺がアドミンのそらまめだ",
-    "さっそくだが",
-    "discord鯖には入ってるか？",
-    "リークとか最新情報が公開されるぜ",
-    "入ってみなよ👀",
-    "なあ😏",
-    "足りないだろ、ラック",
-    "どうだ！3倍ラックだ！",
-    "なんだって？",
-    "変異が足りない？",
-    "ダメだよ、インフレする",
-    "だからやらない",
-    "なんだって？",
-    "ラックが足りない？",
-    "さすがにダメです",
-    "嘘です😏",
-    "じゃあな、来週もお楽しみに"
-  ];
-}
-
-function showAdminMessage(text){
-  const box=document.getElementById("adminMessage");
-  if(!box)return;
-  box.textContent=text;
-  box.style.display="block";
-  clearTimeout(adminMessageTimer);
-  adminMessageTimer=setTimeout(()=>box.style.display="none",7000);
-}
-
-function startAdminMessages(){
-  const key=adminEventKeyFor();
-  if(adminEventKey===key && adminMessageSequence)return;
-  adminEventKey=key;
-  adminMessageIndex=0;
-  adminMessageSequence=true;
-  const msgs=adminMessages();
-  function next(){
-    if(!isAdminEvent(new Date()) || adminMessageIndex>=msgs.length){
-      adminMessageSequence=null;
-      return;
-    }
-    showAdminMessage(msgs[adminMessageIndex++]);
-    setTimeout(next,10000);
-  }
-  next();
-}
-
-function spawnSwagMangoAfterAdmin(){
-  const c=getCharacter("swagmango");
-  if(!c)return;
-  enemy={id:c.id,name:c.name,rarity:c.rarity,image:c.image,hp:c.hp*23,currentHP:c.hp*23,power:c.power,mutations:[]};
-  renderEnemy();
-  log("🥭 管理者イベント終了！スワッグマンゴーが敵として出現！");
-}
-
-function updateAdminEvent(){
-  const active=isAdminEvent(new Date());
-  const key=adminEventKeyFor();
-  if(active){
-    if(!adminEventActive){
-      adminEventActive=true;
-      adminEventKey=key;
-      startAdminMessages();
-      renderEventBanner();
-    }
-  }else if(adminEventActive){
-    adminEventActive=false;
-    adminMessageSequence=null;
-    clearTimeout(adminMessageTimer);
-    const box=document.getElementById("adminMessage");
-    if(box)box.style.display="none";
-    spawnSwagMangoAfterAdmin();
-  }
-}
 function toggleEquip(uid){
   if(equipped.includes(uid)){
     equipped=equipped.filter(x=>x!==uid);
@@ -1011,9 +867,9 @@ function winEnemy(){
   const defeated=getCharacter(enemy.id);
   stopBattle();
   log("🏆 "+defeated.name+" を撃破！");
-  gold += GOLD_REWARD[defeated.rarity] || 0;
-  saveGame();
-  renderGold();
+  const goldReward={コモン:1,レア:3,ゴット:30,シークレット:150}[defeated.rarity]||0;
+  gold+=goldReward;
+  log("💰 "+goldReward+"G 獲得！");
 
   // 変異イベントは「敵を倒した瞬間」に判定
   const mutations=rollMutations();
@@ -1022,9 +878,9 @@ function winEnemy(){
   }
 
   const roll=Math.random();
-  const effectiveDrop=Math.min(1, defeated.drop * getServerLuck());
+  const effectiveDrop=Math.min(1,defeated.drop*serverLuckMultiplier());
   if(roll<effectiveDrop){
-    const item={uid:uid(),id:defeated.id,star:0,mutations};
+    const item={uid:uid(),id:defeated.id,star:0,mutations,books:[]};
     inventory.push(item);
     saveGame();
     showDrop(defeated,item);
@@ -1060,17 +916,122 @@ function toast(text){
   window.__toast=setTimeout(()=>t.style.display="none",1800);
 }
 
+
+function adminEventKey(now=new Date()){
+  const d=new Date(now);
+  const day=d.getDay();
+  const minutes=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
+  const sundayWeekly=(day===0 && minutes>=18*60+30 && minutes<18*60+40);
+  const todayMorning=(d.getFullYear()===2026 && d.getMonth()===8 && d.getDate()===1 &&
+    minutes>=5*60+15 && minutes<5*60+25);
+  if(sundayWeekly)return "weekly-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+  if(todayMorning)return "today-2026-09-01-0515";
+  return "";
+}
+
+function isAdminEvent(now=new Date()){
+  return !!adminEventKey(now);
+}
+
+function adminMessages(){
+  return [
+    "やあ！",
+    "管理者イベントだね😏",
+    "そろそろかな",
+    "一旦2倍ラックと☀️変異を付けるぜ",
+    "よろしくな",
+    "俺がアドミンのそらまめだ",
+    "さっそくだが",
+    "discord鯖には入ってるか？",
+    "リークとか最新情報が公開されるぜ",
+    "入ってみなよ👀",
+    "なあ😏",
+    "足りないだろ、ラック",
+    "どうだ！3倍ラックだ！",
+    "なんだって？",
+    "変異が足りない？",
+    "ダメだよ、インフレする",
+    "だからやらない",
+    "なんだって？",
+    "ラックが足りない？",
+    "さすがにダメです",
+    "嘘です😏",
+    "じゃあな、来週もお楽しみに"
+  ];
+}
+
+function showAdminMessage(message){
+  const box=document.getElementById("eventBanner");
+  box.innerHTML="<div style='font-size:20px;text-align:center;font-weight:bold'>"+message+"</div>";
+  setTimeout(()=>{
+    if(isAdminEvent()){
+      box.innerHTML="";
+    }
+  },7000);
+}
+
+function startAdminEvent(){
+  const key=adminEventKey();
+  if(!key || adminEventState.startedKey===key)return;
+
+  adminEventState.startedKey=key;
+  adminEventState.active=true;
+
+  const messages=adminMessages();
+  let i=0;
+
+  const next=()=>{
+    if(i>=messages.length)return;
+    showAdminMessage(messages[i++]);
+    setTimeout(next,10000); // 7秒表示→3秒後に次
+  };
+  next();
+}
+
+function spawnSwagMangoAfterAdmin(){
+  const c=getCharacter("swagmango");
+  if(!c)return;
+
+  enemy={
+    id:c.id,name:c.name,rarity:c.rarity,image:c.image,
+    hp:c.hp*23,currentHP:c.hp*23,power:c.power,
+    mutations:[]
+  };
+  renderEnemy();
+  log("🥭 管理者イベント終了！スワッグマンゴーが敵として出現！");
+}
+
+function updateAdminEvent(){
+  const active=isAdminEvent();
+
+  if(active && !adminEventState.active){
+    startAdminEvent();
+  }
+
+  if(!active && adminEventState.active){
+    adminEventState.active=false;
+    const now=new Date();
+    const key=adminEventKey(now);
+    // adminEventKeyは終了後に空になるので、直前の開始キーを使う。
+    if(adminEventState.endSpawnedKey!==adminEventState.startedKey){
+      adminEventState.endSpawnedKey=adminEventState.startedKey;
+      spawnSwagMangoAfterAdmin();
+    }
+  }
+}
+
+function serverLuckMultiplier(){
+  return adminEventState.active?5:1;
+}
+
 function updateEventLoop(){
+  updateAdminEvent();
   renderEventBanner();
+  renderShop();
 }
 loadGame();
-refreshShop();
 render();
-eventTimer=setInterval(()=>{
-  updateEventLoop();
-  updateAdminEvent();
-},1000);
-updateAdminEvent();
+eventTimer=setInterval(updateEventLoop,1000);
 </script>
 </body>
 </html>
