@@ -282,6 +282,7 @@ let battleTimer = null;
 let enemyTimer = null;
 let battleRunning = false;
 let machineSelection = [];
+let battleHP = {};
 
 function defaultInventory(){
   return [
@@ -327,12 +328,10 @@ function getOwned(uid){
 function statsOf(item){
   const c=getCharacter(item.id);
   return {
-    hp:c.hp + item.star*2,
+    hp:(c.hp + item.star*2) * 7,
     power:c.power + item.star*2
   };
 }
-
-function rarityClass(r){ return r; }
 
 function render(){
   renderEnemy();
@@ -474,6 +473,8 @@ function fuseSelected(){
   const newStar=a.star+1;
   inventory=inventory.filter(x=>x.uid!==a.uid && x.uid!==b.uid);
   equipped=equipped.filter(x=>x!==a.uid && x!==b.uid);
+  delete battleHP[a.uid];
+  delete battleHP[b.uid];
   const newItem={uid:crypto.randomUUID(),id:a.id,star:newStar};
   inventory.push(newItem);
   saveGame();
@@ -485,6 +486,7 @@ function fuseSelected(){
 function toggleEquip(uid){
   if(equipped.includes(uid)){
     equipped=equipped.filter(x=>x!==uid);
+    delete battleHP[uid];
   }else{
     if(equipped.length>=3){
       toast("装備できるのは3体までです");
@@ -524,6 +526,7 @@ function sellCharacter(uid){
 function doSell(uid){
   inventory=inventory.filter(x=>x.uid!==uid);
   equipped=equipped.filter(x=>x!==uid);
+  delete battleHP[uid];
   saveGame();
   render();
   toast("🗑️ 売却しました");
@@ -576,9 +579,22 @@ function createEnemy(){
   renderEnemy();
 }
 
+function resetBattleHP(){
+  battleHP={};
+  equipped.forEach(uid=>{
+    const item=getOwned(uid);
+    if(item) battleHP[uid]=statsOf(item).hp;
+  });
+}
+
 function startBattle(){
   if(battleRunning) return;
+  if(equipped.length===0){
+    toast("キャラを1体以上装備してください");
+    return;
+  }
   battleRunning=true;
+  resetBattleHP();
   createEnemy();
   log("⚔️ バトル開始！");
   battleTimer=setInterval(playerAttack,1000);
@@ -599,38 +615,57 @@ function playerAttack(){
   let damage=0;
   equipped.forEach(uid=>{
     const item=getOwned(uid);
-    if(item) damage+=statsOf(item).power;
+    if(item && battleHP[uid]>0) damage+=statsOf(item).power;
   });
   if(damage<=0) return;
   enemy.currentHP-=damage;
   log("⚔️ 味方が合計"+damage+"ダメージ！");
   if(enemy.currentHP<=0){
     winEnemy();
+    return;
   }
   renderEnemy();
 }
 
 function enemyAttack(){
   if(!battleRunning||!enemy) return;
-  const active=equipped.map(uid=>getOwned(uid)).filter(Boolean);
+
+  const active=equipped.map(uid=>getOwned(uid)).filter(item=>item && battleHP[item.uid]>0);
   if(!active.length){
-    log("💀 装備キャラがいません");
+    loseBattle();
     return;
   }
-  const target=active[Math.floor(Math.random()*active.length)];
-  const s=statsOf(target);
-  target._battleHP=(target._battleHP===undefined?s.hp:target._battleHP);
-  target._battleHP-=enemy.power;
-  log("👹 "+enemy.name+" が "+enemy.power+" ダメージ！");
-  if(target._battleHP<=0){
-    log("💥 "+getCharacter(target.id).name+" が倒された！");
-    equipped=equipped.filter(uid=>uid!==target.uid);
-    delete target._battleHP;
-    saveGame();
-    render();
-    // 指定仕様：HP0になった瞬間に次の敵へ
-    createEnemy();
+
+  active.forEach(target=>{
+    battleHP[target.uid]-=enemy.power;
+    log("👹 "+enemy.name+" → "+getCharacter(target.id).name+" に "+enemy.power+" ダメージ！");
+  });
+
+  renderBattleHP();
+
+  const alive=active.filter(target=>battleHP[target.uid]>0);
+
+  if(alive.length===0){
+    loseBattle();
+    return;
   }
+
+  active.forEach(target=>{
+    if(battleHP[target.uid]<=0){
+      log("💥 "+getCharacter(target.id).name+" が倒された！");
+    }
+  });
+}
+
+function renderBattleHP(){
+  renderTotals();
+  renderInventory();
+}
+
+function loseBattle(){
+  stopBattle();
+  log("💀 3体全員が倒されました……");
+  toast("💀 敗北！");
 }
 
 function winEnemy(){
@@ -645,7 +680,7 @@ function winEnemy(){
     showDrop(defeated);
   }else{
     toast("😢 ドロップしませんでした");
-    startBattle();
+    setTimeout(()=>startBattle(),500);
   }
 }
 
@@ -656,15 +691,18 @@ function showDrop(c){
   document.getElementById("dropOverlay").classList.add("show");
   render();
 }
+
 function closeDrop(){
   document.getElementById("dropOverlay").classList.remove("show");
   startBattle();
 }
+
 function log(text){
   const box=document.getElementById("battleLog");
   box.innerHTML+="<div>"+new Date().toLocaleTimeString()+"　"+text+"</div>";
   box.scrollTop=box.scrollHeight;
 }
+
 function toast(text){
   const t=document.getElementById("toast");
   t.textContent=text;
