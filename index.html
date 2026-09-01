@@ -48,8 +48,9 @@ h1,h2,h3{margin:5px 0 10px}
 #dropOverlay.show{display:flex}
 .drop-box{animation:pop .45s ease;background:#222;border:3px solid #fff;border-radius:20px;padding:25px;max-width:420px}
 .drop-box img{width:220px;height:180px;object-fit:contain}
-.event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px}
+.event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px;min-height:42px}
 .event-active{font-weight:bold}
+.admin-luck{font-size:18px;font-weight:bold}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 @media(max-width:700px){.enemy-area{grid-template-columns:1fr}.enemy-image{height:210px}}
 </style>
@@ -57,7 +58,7 @@ h1,h2,h3{margin:5px 0 10px}
 <body>
 <div id="app">
   <div class="panel">
-    <h1>🧠⚔️ バトル・ザ・ブレインロット</h1>
+    <h1 id="gameTitle">🧠⚔️ バトル・ザ・ブレインロット</h1>
     <div class="small">最大3体を装備して自動バトル！</div>
   </div>
 
@@ -96,7 +97,7 @@ h1,h2,h3{margin:5px 0 10px}
 
   <div class="panel">
     <h2>④ ⚙️ 合体マシン</h2>
-    <div class="small">同じキャラ・同じ★数の2体を選択して合体できます。最大★10。変異は70%で引き継ぎます。</div>
+    <div class="small">同じキャラ・同じ★数の2体を選択して合体できます。最大★10。本は必ず引き継ぎます。</div>
     <div id="machine" class="machine">
       <div id="machineList" class="machine-grid"></div>
       <div class="row" style="margin-top:10px">
@@ -108,7 +109,7 @@ h1,h2,h3{margin:5px 0 10px}
 
   <div class="panel">
     <h2>🔥 ヒューズマシン</h2>
-    <div class="small">キャラを5体投入。合計Fuse Pointで完成キャラの確率が決まります。変異は70%で引き継ぎます。</div>
+    <div class="small">キャラを5体投入。合計Fuse Pointで確率が決まります。本は引き継ぎません。</div>
     <div id="fuseMachine" class="machine">
       <div id="fuseSelectionInfo"></div>
       <div id="fuseProbability" class="probability-box"></div>
@@ -119,7 +120,6 @@ h1,h2,h3{margin:5px 0 10px}
       </div>
     </div>
   </div>
-
 
   <div class="panel">
     <h2>🛒 ショップ</h2>
@@ -138,7 +138,7 @@ h1,h2,h3{margin:5px 0 10px}
 <div id="modalBg" class="modal-bg">
   <div class="modal">
     <h3 id="modalTitle"></h3>
-    <div id="modalText"></div>
+    <div id="modalText" style="white-space:pre-line"></div>
     <div id="modalButtons"></div>
   </div>
 </div>
@@ -158,28 +158,33 @@ h1,h2,h3{margin:5px 0 10px}
   セーブキー固定：
   "battleTheBrainrotSave"
 
-  現行仕様:
+  重要仕様:
   - 味方HPは基本HP×7
   - 最大3体装備
-  - 合体マシン: 同キャラ・同★を2体、★10まで
-  - ヒューズ: 5体必須、Fuse Pointで確率決定
-  - 変異: イベント中、敵撃破時30%で付与
-  - 合体/ヒューズの変異引き継ぎ70%
-  - 停止ボタンは仕様上削除
+  - 停止ボタンは削除
+  - 変異は味方キャラだけに効果
+  - 通常の合体: 本は必ず引き継ぐ
+  - ヒューズ: 5体、本は引き継がない
+  - 本は1キャラ最大3個
+  - ショップは本3つ、30分ごとに更新
+  - 本の取り消しは1000Gで本は消滅
+  - 管理者イベント: 毎週日曜18:30〜18:40
+  - 2026/09/01 05:15〜05:25にも臨時管理者イベント
+  - 管理者イベント中: Server Luck ×5 + 全変異
+  - 管理者メッセージは7秒表示、次は3秒後
+  - 管理者イベント終了時にスワッグマンゴー出現
 */
 
 const SAVE_KEY = "battleTheBrainrotSave";
 
 const MUTATIONS = {
-  fire:  {name:"⚡️変異", key:"fire"},
-  rain:  {name:"🌧変異", key:"rain"},
-  sun:   {name:"☀️変異", key:"sun"},
-  snow:  {name:"⛄️変異", key:"snow"},
-  demon: {name:"😈悪魔変異", key:"demon"}
+  fire:  {name:"⚡️変異", key:"fire", attack:1.5, hp:1},
+  rain:  {name:"🌧変異", key:"rain", attack:1, hp:1.5},
+  sun:   {name:"☀️変異", key:"sun", attack:1.5, hp:1},
+  snow:  {name:"⛄️変異", key:"snow", attack:1, hp:1},
+  demon: {name:"😈悪魔変異", key:"demon", attack:1, hp:1}
 };
 
-/* 📖 スキルの本
-   🧬変異とは完全に別システム。変異はここには入れない。 */
 const SKILL_BOOKS = {
   statusResist: {name:"状態異常耐性の本", effect:"状態異常時間20%カット", price:150},
   attackUp: {name:"攻撃力アップの本", effect:"攻撃力1.3倍", price:100},
@@ -201,18 +206,30 @@ const characters = [
   {id:"garama", name:"ガラマ＆マドゥンドゥン", rarity:"レア", hp:14, power:16, image:"IMG_3219.png", drop:.30, fusePoint:2},
   {id:"aaa", name:"AAAサフール", rarity:"ゴット", hp:20, power:15, image:"IMG_3218.png", drop:.05, fusePoint:5},
   {id:"bros", name:"ロスブロス", rarity:"ゴット", hp:17, power:18, image:"IMG_3217.webp", drop:.05, fusePoint:5},
+
   {id:"pakurah", name:"パクラフマット", rarity:"シークレット", hp:30, power:24, image:"IMG_3226.webp", drop:.50, fusePoint:10, secretRate:50},
   {id:"swagmango", name:"スワッグマンゴー", rarity:"シークレット", hp:35, power:26, image:"IMG_3227.jpeg", drop:.35, fusePoint:13, secretRate:35},
   {id:"spaghetti", name:"スパゲッティトイレ", rarity:"シークレット", hp:45, power:33, image:"IMG_3228.webp", drop:.15, fusePoint:20, secretRate:12},
-  {id:"caneloni", name:"カネローニドラゴーニ", rarity:"シークレット", hp:75, power:50, image:"IMG_3229.jpeg", drop:.03, fusePoint:30, secretRate:3}
+  {id:"caneloni", name:"カネローニドラゴーニ", rarity:"シークレット", hp:75, power:50, image:"IMG_3229.jpeg", drop:.03, fusePoint:30, secretRate:3},
+
+  {id:"tralaledon", name:"トララレドン", rarity:"クラフト", hp:70, power:55, image:"IMG_3233.jpeg", drop:0, fusePoint:0, craftOnly:true},
+  {id:"girafini", name:"ジラフィニバナニニ", rarity:"レア", hp:17, power:17, image:"IMG_3234.jpeg", drop:.30, fusePoint:2},
+  {id:"losjob", name:"ロスジョブシートス", rarity:"クラフト専用", hp:18, power:18, image:"IMG_3235.png", drop:0, fusePoint:5, craftOnly:true, craftRecipe:"ジョブジョブサフール×3"},
+  {id:"megatrala", name:"メガトララレロ", rarity:"クラフト専用", hp:8, power:23, image:"IMG_3236.jpeg", drop:0, fusePoint:3, craftOnly:true, craftRecipe:"トララレロトラララ×5"},
+  {id:"paperpen", name:"ペーパー二&ペンシル二", rarity:"合成レシピ", hp:38, power:31, image:"IMG_3237.jpeg", drop:0, fusePoint:0, craftOnly:true, recipeType:"probability"},
+  {id:"sixtyseven", name:"67", rarity:"ナンバー", hp:7, power:6.7, image:"IMG_3224.webp", drop:0, fusePoint:0, special:true, numberClicks:67},
+  {id:"didi", name:"Ði Ði Ði Sahur", rarity:"クラフト専用", hp:32, power:39, image:"IMG_3239.webp", drop:0, fusePoint:30, craftOnly:true, craftRecipe:"AAAサフール×5（1%）"},
+  {id:"onion", name:"Potzinini nininini gininini and ONO ONION NO", rarity:"シークレット", hp:43, power:30, image:"IMG_3241.png", drop:.20, fusePoint:20, secretRate:20}
 ];
 
 const SECRET_RATES = [
-  {id:"pakurah", rate:50},
-  {id:"swagmango", rate:35},
-  {id:"spaghetti", rate:12},
-  {id:"caneloni", rate:3}
+  {id:"pakurah", rate:40},
+  {id:"swagmango", rate:28},
+  {id:"spaghetti", rate:10},
+  {id:"caneloni", rate:2},
+  {id:"onion", rate:20}
 ];
+// 自然湧きシークレット全体20%。内訳は上記20/100。
 
 const FUSE_TABLE = [
   {min:1,max:5, rows:[["job",50],["garama",50]]},
@@ -238,7 +255,9 @@ let shopSlot = -1;
 let adminEventState = {
   active:false,
   startedKey:"",
-  endSpawnedKey:""
+  endSpawnedKey:"",
+  messageTimer:null,
+  messageNextTimer:null
 };
 
 function uid(){
@@ -265,9 +284,7 @@ function normalizeItem(item){
 }
 
 function saveGame(){
-  const data={inventory,equipped,gold,shopBooks,shopSlot};
-
-  localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({inventory,equipped,gold,shopBooks,shopSlot}));
 }
 
 function loadGame(){
@@ -305,59 +322,46 @@ function placeholderImage(c){
     "<text x='50%' y='45%' fill='white' font-size='30' text-anchor='middle'>"+text+"</text>"+
     "<text x='50%' y='62%' fill='%23aaaaaa' font-size='18' text-anchor='middle'>画像未設定</text></svg>";
 }
-
 function imageSrc(c){return c.image || placeholderImage(c)}
 
-function mutationNames(muts){
-  return (muts||[]).map(k=>MUTATIONS[k]?.name||k);
-}
-
+function mutationNames(muts){return (muts||[]).map(k=>MUTATIONS[k]?.name||k)}
 function mutationHTML(muts){
-  if(!muts || !muts.length) return "";
+  if(!muts || !muts.length)return "";
   return "<div class='mutation-list'>"+mutationNames(muts).map(x=>"<span class='mutation'>"+x+"</span>").join("")+"</div>";
 }
-
-function bookNames(books){
-  return (books||[]).map(k=>SKILL_BOOKS[k]?.name||k);
-}
-
+function bookNames(books){return (books||[]).map(k=>SKILL_BOOKS[k]?.name||k)}
 function bookHTML(books){
-  if(!books || !books.length) return "";
+  if(!books || !books.length)return "";
   return "<div class='mutation-list'>"+bookNames(books).map(x=>"<span class='mutation'>📖 "+x+"</span>").join("")+"</div>";
 }
 
 function inheritBooksForFusion(a,b){
-  /* ⚙️通常の合体では本を必ず引き継ぐ。重複は1冊にまとめ、最大3冊。 */
   return [...new Set([...(a.books||[]),...(b.books||[])])].slice(0,MAX_BOOKS_PER_CHARACTER);
 }
 
-function addBookToCharacter(uid,bookKey){
-  const item=getOwned(uid);
-  if(!item || !SKILL_BOOKS[bookKey]) return false;
+function addBookToCharacter(itemUid,bookKey){
+  const item=getOwned(itemUid);
+  if(!item || !SKILL_BOOKS[bookKey])return false;
   item.books=Array.isArray(item.books)?item.books:[];
   if(item.books.length>=MAX_BOOKS_PER_CHARACTER){
     toast("📖 1キャラに付けられる本は3個までです");
     return false;
   }
   item.books.push(bookKey);
-  saveGame();
-  render();
+  saveGame();render();
   return true;
 }
 
-function cancelBook(uid,bookKey){
-  const item=getOwned(uid);
+function cancelBook(itemUid,bookKey){
+  const item=getOwned(itemUid);
   if(!item || !(item.books||[]).includes(bookKey)){
-    toast("📖 その本は付いていません");
-    return false;
+    toast("📖 その本は付いていません");return false;
   }
   if(!spendGold(BOOK_CANCEL_COST)){
-    toast("💰 本の取り消しには1000G必要です");
-    return false;
+    toast("💰 本の取り消しには1000G必要です");return false;
   }
   item.books=item.books.filter(x=>x!==bookKey);
-  saveGame();
-  render();
+  saveGame();render();
   toast("📖 本を取り消しました（1000G）");
   return true;
 }
@@ -366,19 +370,22 @@ function statsOf(item){
   const c=getCharacter(item.id);
   let hp=(c.hp + item.star*2)*7;
   let power=c.power + item.star*2;
+
+  for(const m of (item.mutations||[])){
+    const mut=MUTATIONS[m];
+    if(!mut)continue;
+    hp*=mut.hp;
+    power*=mut.attack;
+  }
+
   const books=item.books||[];
+  if(books.includes("hpUp"))hp*=1.3;
+  if(books.includes("extremeHpUp"))hp*=1.75;
+  if(books.includes("attackUp"))power*=1.3;
+  if(books.includes("extremeAttackUp"))power*=1.75;
 
-  if(books.includes("hpUp")) hp*=1.3;
-  if(books.includes("extremeHpUp")) hp*=1.75;
-  if(books.includes("attackUp")) power*=1.3;
-  if(books.includes("extremeAttackUp")) power*=1.75;
-
-  return {
-    hp:Math.round(hp),
-    power:Math.round(power)
-  };
+  return {hp:Math.round(hp),power:Math.round(power)};
 }
-
 
 function spendGold(amount){
   if(gold<amount)return false;
@@ -387,7 +394,7 @@ function spendGold(amount){
 }
 
 function refreshShop(){
-  const slot=Math.floor((new Date().getHours()*60+new Date().getMinutes())/30);
+  const slot=Math.floor((new Date().getTime())/(30*60*1000));
   if(shopSlot===slot && shopBooks.length===3)return;
   const keys=Object.keys(SKILL_BOOKS);
   shopBooks=[...keys].sort(()=>Math.random()-.5).slice(0,3);
@@ -399,7 +406,6 @@ function renderShop(){
   refreshShop();
   const box=document.getElementById("shopBooks");
   if(!box)return;
-
   let html="<div class='small'>💰 所持ゴールド：<b>"+gold+"G</b></div>";
   html+="<div class='character-grid' style='margin-top:8px'>";
   shopBooks.forEach(key=>{
@@ -407,8 +413,7 @@ function renderShop(){
     html+="<div class='card'>"+
       "<div class='card-name'>📖 "+book.name+"</div>"+
       "<div class='card-info'>"+book.effect+"<br>💰 "+book.price+"G</div>"+
-      "<button onclick=\"buyBook('"+key+"')\">購入</button>"+
-      "</div>";
+      "<button onclick=\"buyBook('"+key+"')\">購入</button></div>";
   });
   html+="</div>";
   box.innerHTML=html;
@@ -417,10 +422,7 @@ function renderShop(){
 function buyBook(bookKey){
   const book=SKILL_BOOKS[bookKey];
   if(!book)return;
-  if(gold<book.price){
-    toast("💰 ゴールドが足りません");
-    return;
-  }
+  if(gold<book.price){toast("💰 ゴールドが足りません");return;}
 
   showModal(
     "📖 スキルの本",
@@ -428,19 +430,13 @@ function buyBook(bookKey){
     inventory.map(item=>{
       const c=getCharacter(item.id);
       const full=(item.books||[]).length>=MAX_BOOKS_PER_CHARACTER;
-      return [
-        c.name+" ★"+item.star+(full?"（本3個）":""),
-        ()=>{
-          closeModal();
-          if(full){
-            toast("📖 そのキャラは本が3個でいっぱいです");
-            return;
-          }
-          if(!spendGold(book.price))return;
-          addBookToCharacter(item.uid,bookKey);
-          toast("📖 "+c.name+" に本を付けました！");
-        }
-      ];
+      return [c.name+" ★"+item.star+(full?"（本3個）":""),()=>{
+        closeModal();
+        if(full){toast("📖 そのキャラは本が3個でいっぱいです");return}
+        if(!spendGold(book.price))return;
+        addBookToCharacter(item.uid,bookKey);
+        toast("📖 "+c.name+" に本を付けました！");
+      }];
     }).concat([["キャンセル",closeModal]])
   );
 }
@@ -458,7 +454,10 @@ function render(){
 
 function renderEventBanner(){
   const box=document.getElementById("eventBanner");
-  if(adminEventState.active)return;
+  if(adminEventState.active){
+    if(!box.innerHTML)box.innerHTML="<div class='admin-luck'>👑 管理者イベント中！ Server Luck ×5 ＋ 全変異</div>";
+    return;
+  }
   const events=getActiveEvents();
   if(!events.length){
     box.innerHTML="🕒 <b>変異イベントなし</b>　現在は通常状態です。";
@@ -469,46 +468,36 @@ function renderEventBanner(){
 }
 
 function getActiveEvents(now=new Date()){
-  const h=now.getHours(), m=now.getMinutes(), s=now.getSeconds();
+  const h=now.getHours(),m=now.getMinutes(),s=now.getSeconds();
   const minute=h*60+m+s/60;
   const active=[];
-  // 13:00〜13:02
-  if(minute>=13*60 && minute<13*60+2) active.push(MUTATIONS.demon);
-  // 16:00〜16:15
-  if(minute>=16*60 && minute<16*60+15) active.push(MUTATIONS.sun);
-  // 16:30〜16:45
-  if(minute>=16*60+30 && minute<16*60+45) active.push(MUTATIONS.rain);
-  // 17:00〜17:15
-  if(minute>=17*60 && minute<17*60+15) active.push(MUTATIONS.fire);
-  // 18:00〜18:15
-  if(minute>=18*60 && minute<18*60+15) active.push(MUTATIONS.snow);
-  // 19:00〜19:15
-  if(minute>=19*60 && minute<19*60+15) active.push(MUTATIONS.sun,MUTATIONS.rain);
-  // 20:00〜20:15
-  if(minute>=20*60 && minute<20*60+15) active.push(MUTATIONS.fire,MUTATIONS.snow);
-  // 20:30〜20:45
-  if(minute>=20*60+30 && minute<20*60+45) active.push(MUTATIONS.sun,MUTATIONS.rain,MUTATIONS.fire,MUTATIONS.snow);
+  if(minute>=13*60&&minute<13*60+2)active.push(MUTATIONS.demon);
+  if(minute>=16*60&&minute<16*60+15)active.push(MUTATIONS.sun);
+  if(minute>=16*60+30&&minute<16*60+45)active.push(MUTATIONS.rain);
+  if(minute>=17*60&&minute<17*60+15)active.push(MUTATIONS.fire);
+  if(minute>=18*60&&minute<18*60+15)active.push(MUTATIONS.snow);
+  if(minute>=19*60&&minute<19*60+15)active.push(MUTATIONS.sun,MUTATIONS.rain);
+  if(minute>=20*60&&minute<20*60+15)active.push(MUTATIONS.fire,MUTATIONS.snow);
+  if(minute>=20*60+30&&minute<20*60+45)active.push(MUTATIONS.sun,MUTATIONS.rain,MUTATIONS.fire,MUTATIONS.snow);
   return active;
 }
 
 function mutationKeyPool(){
+  if(adminEventState.active)return Object.keys(MUTATIONS);
   return getActiveEvents().map(x=>x.key);
 }
 
 function rollMutations(){
   const pool=mutationKeyPool();
-  if(!pool.length) return [];
-  if(Math.random()>=0.30) return [];
+  if(!pool.length)return [];
+  if(!adminEventState.active && Math.random()>=0.30)return [];
 
-  // 30%の変異付与判定に成功した後、
-  // 2/3/4個の確率は確定値。残りは1個。
   let count=1;
   const r=Math.random()*100;
-  if(r<2) count=4;
-  else if(r<8) count=3;
-  else if(r<23) count=2;
+  if(r<2)count=4;
+  else if(r<8)count=3;
+  else if(r<23)count=2;
   count=Math.min(count,pool.length);
-
   return [...pool].sort(()=>Math.random()-.5).slice(0,count);
 }
 
@@ -527,7 +516,7 @@ function renderEnemy(){
   }
   es.innerHTML=
     "<div class='stat'>🧠 "+enemy.name+"</div>"+
-    "<div class='stat'>❤️ HP：<b>"+enemy.currentHP+" / "+enemy.hp+"</b></div>"+
+    "<div class='stat'>❤️ HP：<b>"+Math.max(0,Math.round(enemy.currentHP))+" / "+enemy.hp+"</b></div>"+
     "<div class='stat'>⚔️ 火力：<b>"+enemy.power+"</b></div>"+
     "<div class='stat'>⭐ "+enemy.rarity+"</div>"+
     mutationHTML(enemy.mutations);
@@ -536,16 +525,19 @@ function renderEnemy(){
 
 function renderTotals(){
   let hp=0,power=0,names=[];
-  for(const uid of equipped){
-    const item=getOwned(uid);
-    if(!item) continue;
-    const s=statsOf(item);
-    const c=getCharacter(item.id);
-    hp+=s.hp; power+=s.power;
+  for(const itemUid of equipped){
+    const item=getOwned(itemUid);
+    if(!item)continue;
+    const s=statsOf(item),c=getCharacter(item.id);
+    const current= battleRunning && battleHP[item.uid]!=null ? Math.max(0,Math.round(battleHP[item.uid])) : s.hp;
+    hp+=current;
+    power+=s.power;
     names.push(c.name+" ★"+item.star+(item.mutations?.length?" "+mutationNames(item.mutations).join(" "):""));
   }
-  document.getElementById("totalStats").innerHTML="❤️ HP：<b>"+hp+"</b>　⚔️ 火力：<b>"+power+"</b>";
-  document.getElementById("equippedNames").textContent=names.length?"装備中： "+names.join(" / "):"装備なし";
+  document.getElementById("totalStats").innerHTML=
+    "❤️ HP：<b>"+hp+"</b>　⚔️ 火力：<b>"+power+"</b>";
+  document.getElementById("equippedNames").textContent=
+    names.length?"装備中： "+names.join(" / "):"装備なし";
 }
 
 function renderInventory(){
@@ -553,21 +545,25 @@ function renderInventory(){
   if(!inventory.length){box.innerHTML="<div class='small'>所持キャラなし</div>";return}
   box.innerHTML="";
   inventory.forEach(item=>{
-    const c=getCharacter(item.id);
-    const s=statsOf(item);
-    const isEq=equipped.includes(item.uid);
+    const c=getCharacter(item.id),s=statsOf(item),isEq=equipped.includes(item.uid);
+    const current=battleRunning&&battleHP[item.uid]!=null?Math.max(0,Math.round(battleHP[item.uid])):s.hp;
     const div=document.createElement("div");
     div.className="card"+(isEq?" equipped":"");
     div.innerHTML=
       "<img src='"+imageSrc(c)+"' alt='"+c.name+"'>"+
       "<div class='card-name'>"+c.name+"</div>"+
       "<div class='card-info'>⭐ ★"+item.star+"<br>レア度："+c.rarity+
-      "<br>❤️ HP："+s.hp+"<br>⚔️ 火力："+s.power+
+      "<br>❤️ HP："+current+" / "+s.hp+
+      "<br>⚔️ 火力："+s.power+
       "<br>🔥 Fuse P："+c.fusePoint+"</div>"+
-      mutationHTML(item.mutations)+
-      bookHTML(item.books)+
+      mutationHTML(item.mutations)+bookHTML(item.books)+
       "<button onclick=\"toggleEquip('"+item.uid+"')\">"+(isEq?"装備解除":"装備")+"</button>"+
       "<button onclick=\"sellCharacter('"+item.uid+"')\" class='danger'>売却</button>";
+    if((item.books||[]).length){
+      item.books.forEach(bookKey=>{
+        div.innerHTML+="<button onclick=\"cancelBook('"+item.uid+"','"+bookKey+"')\">📖 "+SKILL_BOOKS[bookKey].name+"を取り消す（1000G）</button>";
+      });
+    }
     box.appendChild(div);
   });
 }
@@ -592,8 +588,7 @@ function renderEncyclopedia(){
 function openMachine(){
   if(battleRunning){toast("バトル中は合体できません");return}
   document.getElementById("machine").classList.add("open");
-  machineSelection=[];
-  renderMachine();
+  machineSelection=[];renderMachine();
 }
 function closeMachine(){
   document.getElementById("machine").classList.remove("open");
@@ -607,16 +602,17 @@ function renderMachine(){
     const c=getCharacter(item.id);
     const div=document.createElement("button");
     div.className="select-card"+(machineSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+mutationHTML(item.mutations)+bookHTML(item.books);
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+
+      mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFusion(item.uid);
     box.appendChild(div);
   });
 }
-function selectForFusion(uid){
-  if(machineSelection.includes(uid)) machineSelection=machineSelection.filter(x=>x!==uid);
+function selectForFusion(itemUid){
+  if(machineSelection.includes(itemUid))machineSelection=machineSelection.filter(x=>x!==itemUid);
   else{
-    if(machineSelection.length>=2) machineSelection=[];
-    machineSelection.push(uid);
+    if(machineSelection.length>=2)machineSelection=[];
+    machineSelection.push(itemUid);
   }
   renderMachine();
 }
@@ -635,19 +631,16 @@ function fuseSelected(){
   equipped=equipped.filter(x=>x!==a.uid&&x!==b.uid);
   delete battleHP[a.uid];delete battleHP[b.uid];
 
-  const newItem={uid:uid(),id:a.id,star:newStar,mutations:inherited,books:inheritedBooks};
-  inventory.push(newItem);
+  inventory.push({uid:uid(),id:a.id,star:newStar,mutations:inherited,books:inheritedBooks});
   saveGame();
-  machineSelection=[];
-  render();
+  machineSelection=[];render();
   toast("✨ "+getCharacter(a.id).name+" が★"+newStar+"になりました！"+(inherited.length?" 🧬変異引き継ぎ！":""));
 }
 
 function openFuseMachine(){
   if(battleRunning){toast("バトル中はヒューズできません");return}
   document.getElementById("fuseMachine").classList.add("open");
-  fuseSelection=[];
-  renderFuseMachine();
+  fuseSelection=[];renderFuseMachine();
 }
 function closeFuseMachine(){
   document.getElementById("fuseMachine").classList.remove("open");
@@ -662,98 +655,86 @@ function fuseProbabilities(points){
 function renderFuseMachine(){
   const box=document.getElementById("fuseList");
   if(!box)return;
-  const points=fuseSelection.reduce((sum,uid)=>{
-    const item=getOwned(uid);return sum+(item?getCharacter(item.id).fusePoint:0);
+  const points=fuseSelection.reduce((sum,itemUid)=>{
+    const item=getOwned(itemUid);
+    return sum+(item?getCharacter(item.id).fusePoint:0);
   },0);
   document.getElementById("fuseSelectionInfo").innerHTML=
     "<b>投入："+fuseSelection.length+" / 5体</b>　🔥 合計Fuse Point：<b>"+points+"P</b>";
-
   const probs=fuseProbabilities(Math.max(1,points));
   document.getElementById("fuseProbability").innerHTML=
     "<b>🎯 合成結果の確率</b>"+
     probs.map(x=>"<div class='prob-row'><span>"+x.c.name+"</span><b>"+x.rate+"%</b></div>").join("")+
-    "<div class='small'>※41P以上では現時点でスパゲッティトイレは対象外。</div>";
-
+    "<div class='small'>※ヒューズでは本は引き継がれません。</div>";
   box.innerHTML="";
   inventory.forEach(item=>{
-    const c=getCharacter(item.id);
-    const div=document.createElement("button");
+    const c=getCharacter(item.id),div=document.createElement("button");
     div.className="select-card"+(fuseSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+"<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations)+bookHTML(item.books);
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+
+      "<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFuseMachine(item.uid);
     box.appendChild(div);
   });
 }
-function selectForFuseMachine(uid){
-  if(fuseSelection.includes(uid)){
-    fuseSelection=fuseSelection.filter(x=>x!==uid);
-  }else{
+function selectForFuseMachine(itemUid){
+  if(fuseSelection.includes(itemUid))fuseSelection=fuseSelection.filter(x=>x!==itemUid);
+  else{
     if(fuseSelection.length>=5){toast("ヒューズは5体までです");return}
-    fuseSelection.push(uid);
+    fuseSelection.push(itemUid);
   }
   renderFuseMachine();
 }
 function weightedChoice(rows){
-  const r=Math.random()*100;
-  let acc=0;
-  for(const [id,rate] of rows){
-    acc+=rate;
-    if(r<acc)return id;
-  }
+  const r=Math.random()*100;let acc=0;
+  for(const [id,rate] of rows){acc+=rate;if(r<acc)return id}
   return rows[rows.length-1][0];
 }
 function fuseMachineExecute(){
   if(fuseSelection.length!==5){toast("ヒューズには5体必要です");return}
   const inputs=fuseSelection.map(getOwned).filter(Boolean);
   if(inputs.length!==5){toast("選択キャラを確認してください");return}
-
   const points=inputs.reduce((sum,item)=>sum+getCharacter(item.id).fusePoint,0);
   const table=fuseTableFor(points);
   const resultId=weightedChoice(table.rows);
-  const inherited=inheritMutations(inputs);
 
   const selectedIds=new Set(fuseSelection);
   inventory=inventory.filter(x=>!selectedIds.has(x.uid));
   equipped=equipped.filter(x=>!selectedIds.has(x));
   fuseSelection.forEach(x=>delete battleHP[x]);
 
-  const newItem={uid:uid(),id:resultId,star:0,mutations:inherited,books:[]};
-  inventory.push(newItem);
+  inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[]});
   saveGame();
   const result=getCharacter(resultId);
-  fuseSelection=[];
-  render();
-  showModal(
-    "🔥 ヒューズ成功！",
-    result.name+" を獲得！\n合計Fuse Point："+points+"P\n変異："+(inherited.length?mutationNames(inherited).join(" / "):"なし"),
-    [["OK",closeModal]]
-  );
+  fuseSelection=[];render();
+  showModal("🔥 ヒューズ成功！",
+    result.name+" を獲得！\n合計Fuse Point："+points+"P\n📖 本：引き継ぎなし",
+    [["OK",closeModal]]);
 }
 
-function toggleEquip(uid){
-  if(equipped.includes(uid)){
-    equipped=equipped.filter(x=>x!==uid);
-    delete battleHP[uid];
+function toggleEquip(itemUid){
+  if(equipped.includes(itemUid)){
+    equipped=equipped.filter(x=>x!==itemUid);
+    delete battleHP[itemUid];
   }else{
     if(equipped.length>=3){toast("装備できるのは3体までです");return}
-    equipped.push(uid);
+    equipped.push(itemUid);
   }
   saveGame();render();
 }
 
-function sellCharacter(uid){
-  const item=getOwned(uid);if(!item)return;
+function sellCharacter(itemUid){
+  const item=getOwned(itemUid);if(!item)return;
   const c=getCharacter(item.id);
   if(c.rarity==="ゴット"){
     confirmTwoStep("ゴットキャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>{
-      confirmTwoStep("最終確認","本当に売却しますか？この操作は元に戻せません。",()=>doSell(uid));
+      confirmTwoStep("最終確認","本当に売却しますか？この操作は元に戻せません。",()=>doSell(itemUid));
     });
-  }else confirmOne("キャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>doSell(uid));
+  }else confirmOne("キャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>doSell(itemUid));
 }
-function doSell(uid){
-  inventory=inventory.filter(x=>x.uid!==uid);
-  equipped=equipped.filter(x=>x!==uid);
-  delete battleHP[uid];
+function doSell(itemUid){
+  inventory=inventory.filter(x=>x.uid!==itemUid);
+  equipped=equipped.filter(x=>x!==itemUid);
+  delete battleHP[itemUid];
   saveGame();render();toast("🗑️ 売却しました");
 }
 function confirmOne(title,text,ok){
@@ -780,16 +761,14 @@ function weightedRarity(){
   if(r<99)return "ゴット";
   return "シークレット";
 }
-function pickSecret(){
-  return weightedChoice(SECRET_RATES);
-}
+function pickSecret(){return weightedChoice(SECRET_RATES)}
+
 function createEnemy(){
   const rarity=weightedRarity();
   let c;
-  if(rarity==="シークレット"){
-    c=getCharacter(pickSecret());
-  }else{
-    const pool=characters.filter(x=>x.rarity===rarity);
+  if(rarity==="シークレット")c=getCharacter(pickSecret());
+  else{
+    const pool=characters.filter(x=>x.rarity===rarity && !x.craftOnly && !x.special);
     c=pool[Math.floor(Math.random()*pool.length)];
   }
   enemy={
@@ -802,9 +781,9 @@ function createEnemy(){
 
 function resetBattleHP(){
   battleHP={};
-  equipped.forEach(uid=>{
-    const item=getOwned(uid);
-    if(item)battleHP[uid]=statsOf(item).hp;
+  equipped.forEach(itemUid=>{
+    const item=getOwned(itemUid);
+    if(item)battleHP[itemUid]=statsOf(item).hp;
   });
 }
 
@@ -828,20 +807,20 @@ function stopBattle(){
 function playerAttack(){
   if(!battleRunning||!enemy)return;
   let damage=0;
-  equipped.forEach(uid=>{
-    const item=getOwned(uid);
-    if(item&&battleHP[uid]>0)damage+=statsOf(item).power;
+  equipped.forEach(itemUid=>{
+    const item=getOwned(itemUid);
+    if(item&&battleHP[itemUid]>0)damage+=statsOf(item).power;
   });
   if(damage<=0)return;
   enemy.currentHP-=damage;
   log("⚔️ 味方が合計"+damage+"ダメージ！");
   if(enemy.currentHP<=0){winEnemy();return}
-  renderEnemy();
+  renderEnemy();renderTotals();renderInventory();
 }
 
 function enemyAttack(){
   if(!battleRunning||!enemy)return;
-  const active=equipped.map(uid=>getOwned(uid)).filter(item=>item&&battleHP[item.uid]>0);
+  const active=equipped.map(itemUid=>getOwned(itemUid)).filter(item=>item&&battleHP[item.uid]>0);
   if(!active.length){loseBattle();return}
   active.forEach(target=>{
     battleHP[target.uid]-=enemy.power;
@@ -871,21 +850,17 @@ function winEnemy(){
   gold+=goldReward;
   log("💰 "+goldReward+"G 獲得！");
 
-  // 変異イベントは「敵を倒した瞬間」に判定
   const mutations=rollMutations();
-  if(mutations.length){
-    log("🧬 "+mutationNames(mutations).join(" / ")+" が発生！");
-  }
+  if(mutations.length)log("🧬 "+mutationNames(mutations).join(" / ")+" が発生！");
 
-  const roll=Math.random();
   const effectiveDrop=Math.min(1,defeated.drop*serverLuckMultiplier());
-  if(roll<effectiveDrop){
+  if(Math.random()<effectiveDrop){
     const item={uid:uid(),id:defeated.id,star:0,mutations,books:[]};
     inventory.push(item);
     saveGame();
     showDrop(defeated,item);
   }else{
-    if(mutations.length) log("🧬 変異は付いたが、ドロップしませんでした。");
+    if(mutations.length)log("🧬 変異は発生したが、ドロップしませんでした。");
     toast("😢 ドロップしませんでした");
     setTimeout(()=>startBattle(),500);
   }
@@ -894,8 +869,7 @@ function winEnemy(){
 function showDrop(c,item){
   document.getElementById("dropImage").src=imageSrc(c);
   document.getElementById("dropName").textContent=c.name;
-  document.getElementById("dropInfo").innerHTML=
-    "⭐ "+c.rarity+" を獲得！"+mutationHTML(item.mutations);
+  document.getElementById("dropInfo").innerHTML="⭐ "+c.rarity+" を獲得！"+mutationHTML(item.mutations);
   document.getElementById("dropOverlay").classList.add("show");
   render();
 }
@@ -916,22 +890,22 @@ function toast(text){
   window.__toast=setTimeout(()=>t.style.display="none",1800);
 }
 
-
 function adminEventKey(now=new Date()){
   const d=new Date(now);
   const day=d.getDay();
   const minutes=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
-  const sundayWeekly=(day===0 && minutes>=18*60+30 && minutes<18*60+40);
-  const todayMorning=(d.getFullYear()===2026 && d.getMonth()===8 && d.getDate()===1 &&
-    minutes>=5*60+15 && minutes<5*60+25);
-  if(sundayWeekly)return "weekly-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
-  if(todayMorning)return "today-2026-09-01-0515";
+
+  if(day===0 && minutes>=18*60+30 && minutes<18*60+40)
+    return "weekly-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
+
+  if(d.getFullYear()===2026 && d.getMonth()===8 && d.getDate()===1 &&
+     minutes>=5*60+15 && minutes<5*60+25)
+    return "today-2026-09-01-0515";
+
   return "";
 }
 
-function isAdminEvent(now=new Date()){
-  return !!adminEventKey(now);
-}
+function isAdminEvent(now=new Date()){return !!adminEventKey(now)}
 
 function adminMessages(){
   return [
@@ -963,16 +937,17 @@ function adminMessages(){
 function showAdminMessage(message){
   const box=document.getElementById("eventBanner");
   box.innerHTML="<div style='font-size:20px;text-align:center;font-weight:bold'>"+message+"</div>";
-  setTimeout(()=>{
+  clearTimeout(adminEventState.messageTimer);
+  adminEventState.messageTimer=setTimeout(()=>{
     if(isAdminEvent()){
-      box.innerHTML="";
+      box.innerHTML="<div class='admin-luck'>👑 管理者イベント中！ Server Luck ×5 ＋ 全変異</div>";
     }
   },7000);
 }
 
 function startAdminEvent(){
   const key=adminEventKey();
-  if(!key || adminEventState.startedKey===key)return;
+  if(!key||adminEventState.startedKey===key)return;
 
   adminEventState.startedKey=key;
   adminEventState.active=true;
@@ -981,9 +956,10 @@ function startAdminEvent(){
   let i=0;
 
   const next=()=>{
-    if(i>=messages.length)return;
+    if(!adminEventState.active || i>=messages.length)return;
     showAdminMessage(messages[i++]);
-    setTimeout(next,10000); // 7秒表示→3秒後に次
+    // 7秒表示 → 消えてから3秒後に次
+    adminEventState.messageNextTimer=setTimeout(next,10000);
   };
   next();
 }
@@ -991,7 +967,6 @@ function startAdminEvent(){
 function spawnSwagMangoAfterAdmin(){
   const c=getCharacter("swagmango");
   if(!c)return;
-
   enemy={
     id:c.id,name:c.name,rarity:c.rarity,image:c.image,
     hp:c.hp*23,currentHP:c.hp*23,power:c.power,
@@ -1004,15 +979,13 @@ function spawnSwagMangoAfterAdmin(){
 function updateAdminEvent(){
   const active=isAdminEvent();
 
-  if(active && !adminEventState.active){
-    startAdminEvent();
-  }
+  if(active && !adminEventState.active)startAdminEvent();
 
   if(!active && adminEventState.active){
     adminEventState.active=false;
-    const now=new Date();
-    const key=adminEventKey(now);
-    // adminEventKeyは終了後に空になるので、直前の開始キーを使う。
+    clearTimeout(adminEventState.messageTimer);
+    clearTimeout(adminEventState.messageNextTimer);
+
     if(adminEventState.endSpawnedKey!==adminEventState.startedKey){
       adminEventState.endSpawnedKey=adminEventState.startedKey;
       spawnSwagMangoAfterAdmin();
@@ -1029,9 +1002,28 @@ function updateEventLoop(){
   renderEventBanner();
   renderShop();
 }
+
 loadGame();
 render();
 eventTimer=setInterval(updateEventLoop,1000);
+
+// 67ボタン: タイトルを67回クリックすると67を獲得
+let titleClickCount=0;
+let titleClickWindow=0;
+document.getElementById("gameTitle").addEventListener("click",()=>{
+  const now=Date.now();
+  if(now-titleClickWindow>3000){titleClickCount=0}
+  titleClickWindow=now;
+  titleClickCount++;
+  if(titleClickCount===67){
+    if(!inventory.some(x=>x.id==="sixtyseven")){
+      inventory.push({uid:uid(),id:"sixtyseven",star:0,mutations:[],books:[]});
+      saveGame();render();
+      toast("🔢 67 Is Not Over！67を獲得！");
+    }else toast("🔢 67はすでに所持しています");
+    titleClickCount=0;
+  }
+});
 </script>
 </body>
 </html>
