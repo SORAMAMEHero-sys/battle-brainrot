@@ -719,7 +719,7 @@ function renderCraftMachine(){
         "<br>🧪 必要素材<br>"+ingredientHTML+
         (recipe.chance?"<br><br>🎯 成功確率："+(recipe.chance*100)+"%":"")+
       "</div>"+
-      "<button "+(possible?"":"disabled")+" onclick="craftCharacter('"+recipe.id+"')">"+
+      "<button "+(possible?"":"disabled")+" onclick=\"craftCharacter('"+recipe.id+"')\">"+
         (possible?"🛠️ クラフトする":"🔒 素材不足")+
       "</button>";
 
