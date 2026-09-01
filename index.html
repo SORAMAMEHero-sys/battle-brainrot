@@ -61,6 +61,9 @@ h1,h2,h3{margin:5px 0 10px}
     <h1 id="gameTitle">🧠⚔️ バトル・ザ・ブレインロット</h1>
     <div class="small">最大3体を装備して自動バトル！</div>
   </div>
+  
+  <audio id="secretSound1" src="Secret1.mp3" preload="auto"></audio>
+　<audio id="secretSound2" src="Secret2.mp3" preload="auto"></audio>
 
   <div class="event-banner" id="eventBanner"></div>
 
@@ -405,7 +408,31 @@ function placeholderImage(c){
     "<text x='50%' y='62%' fill='%23aaaaaa' font-size='18' text-anchor='middle'>画像未設定</text></svg>";
 }
 function imageSrc(c){return c.image || placeholderImage(c)}
+function playSecretSpawnSound(character){
+  if(!character || character.rarity!=="シークレット") return;
 
+  let soundId="secretSound1";
+
+  // カネローニドラゴーニ以上
+  if(character.id==="caneloni"){
+    soundId="secretSound2";
+  }
+
+  const audio=document.getElementById(soundId);
+  if(!audio)return;
+
+  try{
+    audio.pause();
+    audio.currentTime=0;
+
+    const p=audio.play();
+    if(p && typeof p.catch==="function"){
+      p.catch(()=>{
+        // ブラウザの自動再生制限などで再生できない場合は無視
+      });
+    }
+  }catch(e){}
+}
 function mutationNames(muts){return (muts||[]).map(k=>MUTATIONS[k]?.name||k)}
 function mutationHTML(muts){
   if(!muts || !muts.length)return "";
@@ -968,21 +995,33 @@ function weightedRarity(){
   if(r<99)return "ゴット";
   return "シークレット";
 }
-function pickSecret(){return weightedChoice(SECRET_RATES)}
-
 function createEnemy(){
   const rarity=weightedRarity();
   let c;
-  if(rarity==="シークレット")c=getCharacter(pickSecret());
-  else{
-    const pool=characters.filter(x=>x.rarity===rarity && !x.craftOnly && !x.special);
+
+  if(rarity==="シークレット"){
+    c=getCharacter(pickSecret());
+  }else{
+    const pool=characters.filter(
+      x=>x.rarity===rarity && !x.craftOnly && !x.special
+    );
     c=pool[Math.floor(Math.random()*pool.length)];
   }
+
   enemy={
-    id:c.id,name:c.name,rarity:c.rarity,image:c.image,
-    hp:c.hp*23,currentHP:c.hp*23,power:c.power,
+    id:c.id,
+    name:c.name,
+    rarity:c.rarity,
+    image:c.image,
+    hp:c.hp*23,
+    currentHP:c.hp*23,
+    power:c.power,
     mutations:[]
   };
+
+  // シークレット出現音
+  playSecretSpawnSound(c);
+
   renderEnemy();
 }
 
