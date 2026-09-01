@@ -121,10 +121,29 @@ h1,h2,h3{margin:5px 0 10px}
     </div>
   </div>
 
+
+  <div class="panel">
+    <h2>🛠️ クラフトマシン</h2>
+    <div class="small">必要な素材をそろえると、クラフト専用キャラを作成できます。</div>
+    <div id="craftMachine" class="machine open">
+      <div id="craftRecipeList" class="machine-grid"></div>
+    </div>
+  </div>
+
   <div class="panel">
     <h2>🛒 ショップ</h2>
     <div class="small">📖 スキルの本は3つ並び、30分ごとに入れ替わります。</div>
     <div id="shopBooks"></div>
+  </div>
+
+
+  <div class="panel">
+    <h2>⚙️ 設定</h2>
+    <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer">
+      <input type="checkbox" id="showDropOverlaySetting" onchange="setShowDropOverlay(this.checked)">
+      🎉 「ドロップしました！」画面を表示する
+    </label>
+    <div class="small">OFFにすると、ドロップしたキャラをすぐ所持キャラへ追加して自動バトルを再開します。</div>
   </div>
 
   <div class="panel">
@@ -222,6 +241,41 @@ const characters = [
   {id:"onion", name:"Potzinini nininini gininini and ONO ONION NO", rarity:"シークレット", hp:43, power:30, image:"IMG_3241.png", drop:.20, fusePoint:20, secretRate:20}
 ];
 
+
+const CRAFT_RECIPES = [
+  {
+    id:"tralaledon",
+    name:"トララレドン",
+    ingredients:[{id:"caneloni",count:1},{id:"tralalero",count:1}],
+    description:"カネローニドラゴーニ × トララレロトラララ"
+  },
+  {
+    id:"losjob",
+    name:"ロスジョブシートス",
+    ingredients:[{id:"job",count:3}],
+    description:"ジョブジョブサフール ×3"
+  },
+  {
+    id:"megatrala",
+    name:"メガトララレロ",
+    ingredients:[{id:"tralalero",count:5}],
+    description:"トララレロトラララ ×5"
+  },
+  {
+    id:"paperpen",
+    name:"ペーパー二&ペンシル二",
+    ingredients:[],
+    description:"合成レシピ（確率式）"
+  },
+  {
+    id:"didi",
+    name:"Ði Ði Ði Sahur",
+    ingredients:[{id:"aaa",count:5}],
+    description:"AAAサフール ×5（1%）",
+    chance:0.01
+  }
+];
+
 const SECRET_RATES = [
   {id:"pakurah", rate:40},
   {id:"swagmango", rate:28},
@@ -252,6 +306,13 @@ let eventTimer = null;
 let gold = 0;
 let shopBooks = [];
 let shopSlot = -1;
+
+/* 🎉 ドロップ表示設定
+   true  = ドロップ画面を表示
+   false = ドロップ画面を表示せず即時取得
+*/
+let showDropOverlaySetting = true;
+
 let adminEventState = {
   active:false,
   startedKey:"",
@@ -284,7 +345,14 @@ function normalizeItem(item){
 }
 
 function saveGame(){
-  localStorage.setItem(SAVE_KEY,JSON.stringify({inventory,equipped,gold,shopBooks,shopSlot}));
+  localStorage.setItem(SAVE_KEY,JSON.stringify({
+    inventory,
+    equipped,
+    gold,
+    shopBooks,
+    shopSlot,
+    showDropOverlaySetting
+  }));
 }
 
 function loadGame(){
@@ -302,6 +370,7 @@ function loadGame(){
       gold=Number.isFinite(Number(data.gold))?Number(data.gold):0;
       shopBooks=Array.isArray(data.shopBooks)?data.shopBooks.filter(x=>SKILL_BOOKS[x]):[];
       shopSlot=Number.isFinite(Number(data.shopSlot))?Number(data.shopSlot):-1;
+      showDropOverlaySetting = data.showDropOverlaySetting !== false;
       saveGame();
     }
   }catch(e){
@@ -313,6 +382,19 @@ function loadGame(){
 
 function getCharacter(id){return characters.find(c=>c.id===id)}
 function getOwned(uid){return inventory.find(x=>x.uid===uid)}
+
+function setShowDropOverlay(enabled){
+  showDropOverlaySetting=!!enabled;
+  saveGame();
+  toast(showDropOverlaySetting
+    ? "🎉 ドロップ画面：ON"
+    : "🎉 ドロップ画面：OFF");
+}
+
+function renderSettings(){
+  const checkbox=document.getElementById("showDropOverlaySetting");
+  if(checkbox) checkbox.checked=showDropOverlaySetting;
+}
 
 function placeholderImage(c){
   const text=encodeURIComponent((c.rarity==="シークレット"?"🕵️ ":"")+"🧠 "+c.name);
@@ -444,12 +526,14 @@ function buyBook(bookKey){
 function render(){
   renderEventBanner();
   renderShop();
+  renderSettings();
   renderEnemy();
   renderTotals();
   renderInventory();
   renderEncyclopedia();
   renderMachine();
   renderFuseMachine();
+  renderCraftMachine();
 }
 
 function renderEventBanner(){
@@ -583,6 +667,129 @@ function renderEncyclopedia(){
         "<div class='card-name'>？？？</div><div class='card-info'>未入手</div>";
     box.appendChild(div);
   });
+}
+
+
+function countOwnedCharacter(id){
+  return inventory.filter(item=>item.id===id).length;
+}
+
+function craftIngredientText(recipe){
+  if(!recipe.ingredients.length)return recipe.description;
+  return recipe.ingredients.map(x=>{
+    const c=getCharacter(x.id);
+    return c.name+" ×"+x.count;
+  }).join(" ＋ ");
+}
+
+function canCraft(recipe){
+  if(!recipe.ingredients.length)return false;
+  return recipe.ingredients.every(x=>countOwnedCharacter(x.id)>=x.count);
+}
+
+function renderCraftMachine(){
+  const box=document.getElementById("craftRecipeList");
+  if(!box)return;
+  box.innerHTML="";
+
+  CRAFT_RECIPES.forEach(recipe=>{
+    const result=getCharacter(recipe.id);
+    if(!result)return;
+
+    const possible=canCraft(recipe);
+    const div=document.createElement("div");
+    div.className="card";
+
+    const ingredientHTML=recipe.ingredients.length
+      ? recipe.ingredients.map(x=>{
+          const c=getCharacter(x.id);
+          const have=countOwnedCharacter(x.id);
+          return "<div>"+c.name+" ×"+x.count+
+            "　<span class='small'>(所持 "+have+"体)</span></div>";
+        }).join("")
+      : "<div>"+recipe.description+"</div>";
+
+    div.innerHTML=
+      "<img src='"+imageSrc(result)+"' alt='"+result.name+"'>"+
+      "<div class='card-name'>"+result.name+"</div>"+
+      "<div class='card-info'>"+
+        "⭐ "+result.rarity+"<br>"+
+        "❤️ HP："+result.hp+"<br>"+
+        "⚔️ 火力："+result.power+"<br>"+
+        "<br>🧪 必要素材<br>"+ingredientHTML+
+        (recipe.chance?"<br><br>🎯 成功確率："+(recipe.chance*100)+"%":"")+
+      "</div>"+
+      "<button "+(possible?"":"disabled")+" onclick="craftCharacter('"+recipe.id+"')">"+
+        (possible?"🛠️ クラフトする":"🔒 素材不足")+
+      "</button>";
+
+    box.appendChild(div);
+  });
+}
+
+function consumeCraftIngredients(recipe){
+  for(const ingredient of recipe.ingredients){
+    let remaining=ingredient.count;
+    for(let i=inventory.length-1;i>=0 && remaining>0;i--){
+      if(inventory[i].id!==ingredient.id)continue;
+      const itemUid=inventory[i].uid;
+      equipped=equipped.filter(x=>x!==itemUid);
+      delete battleHP[itemUid];
+      inventory.splice(i,1);
+      remaining--;
+    }
+  }
+}
+
+function craftCharacter(resultId){
+  if(battleRunning){
+    toast("バトル中はクラフトできません");
+    return;
+  }
+
+  const recipe=CRAFT_RECIPES.find(x=>x.id===resultId);
+  const result=getCharacter(resultId);
+  if(!recipe||!result)return;
+
+  if(!canCraft(recipe)){
+    toast("🛠️ 素材が足りません");
+    return;
+  }
+
+  showModal(
+    "🛠️ クラフト確認",
+    result.name+" をクラフトしますか？\n\n必要素材：\n"+craftIngredientText(recipe)+
+      (recipe.chance?"\n\n🎯 成功確率："+(recipe.chance*100)+"%":""),
+    [
+      ["キャンセル",closeModal],
+      ["クラフトする",()=>{
+        closeModal();
+
+        // 素材を先に消費
+        consumeCraftIngredients(recipe);
+
+        // 確率レシピはここで成功判定
+        if(recipe.chance && Math.random()>=recipe.chance){
+          saveGame();
+          render();
+          toast("💥 クラフト失敗……素材は消費されました");
+          return;
+        }
+
+        inventory.push({
+          uid:uid(),
+          id:resultId,
+          star:0,
+          mutations:[],
+          books:[]
+        });
+
+        saveGame();
+        render();
+        toast("🎉 "+result.name+" をクラフトしました！");
+      }]
+    ]
+  );
 }
 
 function openMachine(){
@@ -867,6 +1074,13 @@ function winEnemy(){
 }
 
 function showDrop(c,item){
+  /* 🎉 設定OFFならドロップ演出を出さず、そのまま次のバトルへ */
+  if(!showDropOverlaySetting){
+    render();
+    setTimeout(()=>startBattle(),0);
+    return;
+  }
+
   document.getElementById("dropImage").src=imageSrc(c);
   document.getElementById("dropName").textContent=c.name;
   document.getElementById("dropInfo").innerHTML="⭐ "+c.rarity+" を獲得！"+mutationHTML(item.mutations);
