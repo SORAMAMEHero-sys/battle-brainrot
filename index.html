@@ -1069,7 +1069,21 @@ function showModal(title,text,buttons){
 function closeModal(){document.getElementById("modalBg").classList.remove("show")}
 
 function weightedRarity(){
+  /* 🍀 Luck ×10中はレア以上の出現率を引き上げる。
+     コモン・レア・ゴットを調整して合計100%を維持する。
+     通常：70 / 20 / 9 / 0.9 / 0.1
+     ×10：55 / 25 / 10 / 9 / 1
+  */
   const r=Math.random()*100;
+
+  if(isTestLuck10Active()){
+    if(r<55)return "コモン";
+    if(r<80)return "レア";
+    if(r<90)return "ゴット";
+    if(r<99)return "シークレット";
+    return "エクストラ";
+  }
+
   if(r<70)return "コモン";
   if(r<90)return "レア";
   if(r<99)return "ゴット";
