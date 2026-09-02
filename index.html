@@ -158,6 +158,17 @@ h1,h2,h3{margin:5px 0 10px}
   </div>
 
   <div class="panel">
+    <h2>🔬 Luck ×10 抽選検証</h2>
+    <div class="small">実際に出現した敵のレアリティを、このページを開いてから集計します。Secret 9% / Extra 1% が本当に機能しているか確認できます。</div>
+    <div id="rarityDebugStats" class="probability-box"></div>
+    <div class="row">
+      <button class="main-btn" onclick="runRaritySimulation(100)">🎲 100回シミュレーション</button>
+      <button class="main-btn" onclick="resetRarityDebug()">♻️ 実戦カウントリセット</button>
+    </div>
+    <div id="rarityDebugSimulation" class="small"></div>
+  </div>
+
+  <div class="panel">
     <h2>⑤ 📖 キャラ図鑑</h2>
     <div id="encyclopedia" class="character-grid"></div>
   </div>
@@ -384,6 +395,8 @@ let adminEventState = {
   messageTimer:null,
   messageNextTimer:null
 };
+
+let rarityDebugStats={total:0,common:0,rare:0,god:0,secret:0,extra:0};
 
 function uid(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
@@ -1068,6 +1081,33 @@ function showModal(title,text,buttons){
 }
 function closeModal(){document.getElementById("modalBg").classList.remove("show")}
 
+function recordRarityDebug(rarity){
+  rarityDebugStats.total++;
+  if(rarity==="コモン")rarityDebugStats.common++;
+  else if(rarity==="レア")rarityDebugStats.rare++;
+  else if(rarity==="ゴット")rarityDebugStats.god++;
+  else if(rarity==="シークレット")rarityDebugStats.secret++;
+  else if(rarity==="エクストラ")rarityDebugStats.extra++;
+  renderRarityDebug();
+}
+function rarityDebugPercent(count,total){return total?(count/total*100).toFixed(2):"0.00";}
+function renderRarityDebug(){
+  const box=document.getElementById("rarityDebugStats");if(!box)return;
+  const t=rarityDebugStats.total;
+  box.innerHTML="📊 実戦カウント：<b>"+t+"体</b><br>"+"🟢 コモン："+rarityDebugStats.common+"（"+rarityDebugPercent(rarityDebugStats.common,t)+"%）<br>"+"🔵 レア："+rarityDebugStats.rare+"（"+rarityDebugPercent(rarityDebugStats.rare,t)+"%）<br>"+"🟣 ゴット："+rarityDebugStats.god+"（"+rarityDebugPercent(rarityDebugStats.god,t)+"%）<br>"+"🔴 シークレット：<b>"+rarityDebugStats.secret+"（"+rarityDebugPercent(rarityDebugStats.secret,t)+"%）</b><br>"+"🟠 Extra：<b>"+rarityDebugStats.extra+"（"+rarityDebugPercent(rarityDebugStats.extra,t)+"%）</b>";
+}
+function resetRarityDebug(){
+  rarityDebugStats={total:0,common:0,rare:0,god:0,secret:0,extra:0};
+  const sim=document.getElementById("rarityDebugSimulation");if(sim)sim.textContent="";
+  renderRarityDebug();toast("🔬 実戦カウントをリセットしました");
+}
+function runRaritySimulation(count=100){
+  const result={コモン:0,レア:0,ゴット:0,シークレット:0,エクストラ:0};
+  for(let i=0;i<count;i++)result[weightedRarity()]++;
+  const box=document.getElementById("rarityDebugSimulation");if(!box)return;
+  box.innerHTML="🎲 "+count+"回シミュレーション：🟢 "+result.コモン+" / 🔵 "+result.レア+" / 🟣 "+result.ゴット+" / 🔴 "+result.シークレット+" / 🟠 "+result.エクストラ+"<br><span class='small'>※実戦カウントとは別の独立シミュレーションです。</span>";
+}
+
 function weightedRarity(){
   /* 🍀 Luck ×10中はレア以上の出現率を引き上げる。
      コモン・レア・ゴットを調整して合計100%を維持する。
@@ -1094,6 +1134,7 @@ function pickSecret(){return weightedChoice(SECRET_RATES)}
 
 function createEnemy(){
   const rarity=weightedRarity();
+  recordRarityDebug(rarity);
   let c;
   if(rarity==="シークレット")c=getCharacter(pickSecret());
   else if(rarity==="エクストラ"){
@@ -1387,6 +1428,7 @@ function updateEventLoop(){
 
 loadGame();
 render();
+renderRarityDebug();
 eventTimer=setInterval(updateEventLoop,1000);
 
 // 67ボタン: タイトルを67回クリックすると67を獲得
