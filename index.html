@@ -46,43 +46,6 @@ h1,h2,h3{margin:5px 0 10px}
 .danger{background:#d33!important;color:#fff}
 #dropOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:55;align-items:center;justify-content:center;text-align:center}
 #dropOverlay.show{display:flex}
-
-#jsErrorOverlay{
-  display:none;position:fixed;inset:0;z-index:99999;
-  background:rgba(255,0,0,.94);
-  align-items:center;justify-content:center;padding:16px;
-  animation:jsErrorFlash .42s infinite alternate;
-}
-#jsErrorOverlay.show{display:flex}
-#jsErrorBox{
-  width:min(760px,100%);max-height:90vh;overflow:auto;
-  background:#090000;border:7px solid #ff0000;border-radius:20px;
-  box-shadow:0 0 12px #fff,0 0 35px #ff0000,0 0 80px #ff0000;
-  padding:20px;animation:jsErrorBoxPulse .65s infinite alternate;
-}
-#jsErrorTitle{
-  font-size:30px;font-weight:900;text-align:center;color:#fff;
-  text-shadow:0 0 8px #fff,0 0 18px #ff0000;margin-bottom:12px;
-}
-#jsErrorMessage{
-  color:#fff;background:#1a0000;border:2px solid #ff3333;
-  border-radius:12px;padding:12px;font-family:monospace;font-size:14px;
-  white-space:pre-wrap;word-break:break-word;
-}
-#jsErrorClose{
-  width:100%;margin-top:14px;padding:14px;border:3px solid #fff;
-  border-radius:12px;background:#f00;color:#fff;font-weight:900;
-  font-size:18px;box-shadow:0 0 15px #f00;
-}
-@keyframes jsErrorFlash{
-  from{background:rgba(255,0,0,.88)}
-  to{background:rgba(255,255,255,.96)}
-}
-@keyframes jsErrorBoxPulse{
-  from{transform:scale(1);box-shadow:0 0 12px #fff,0 0 35px #f00,0 0 80px #f00}
-  to{transform:scale(1.012);box-shadow:0 0 25px #fff,0 0 60px #f00,0 0 120px #f00}
-}
-
 .drop-box{animation:pop .45s ease;background:#222;border:3px solid #fff;border-radius:20px;padding:25px;max-width:420px}
 .drop-box img{width:220px;height:180px;object-fit:contain}
 .event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px;min-height:42px}
@@ -228,18 +191,6 @@ h1,h2,h3{margin:5px 0 10px}
     <h2 id="dropName"></h2>
     <div id="dropInfo"></div>
     <button class="main-btn" onclick="closeDrop()">GET！</button>
-  </div>
-</div>
-
-
-<div id="jsErrorOverlay">
-  <div id="jsErrorBox">
-    <div id="jsErrorTitle">🚨🚨 JAVASCRIPT ERROR 🚨🚨</div>
-    <div class="small" style="text-align:center;color:#fff;margin-bottom:10px">
-      ⚠️ ゲーム内部でエラーを検出しました。原因調査用デバッグ画面です。
-    </div>
-    <div id="jsErrorMessage"></div>
-    <button id="jsErrorClose" onclick="hideJsError()">閉じる（ゲームは停止したまま）</button>
   </div>
 </div>
 
@@ -1062,8 +1013,14 @@ function selectForFuseMachine(itemUid){
 }
 function weightedChoice(rows){
   const r=Math.random()*100;let acc=0;
-  for(const [id,rate] of rows){acc+=rate;if(r<acc)return id}
-  return rows[rows.length-1][0];
+  for(const row of rows){
+    const id=Array.isArray(row)?row[0]:row.id;
+    const rate=Array.isArray(row)?row[1]:row.rate;
+    acc+=rate;
+    if(r<acc)return id;
+  }
+  const last=rows[rows.length-1];
+  return Array.isArray(last)?last[0]:last.id;
 }
 function fuseMachineExecute(){
   if(fuseSelection.length!==5){toast("ヒューズには5体必要です");return}
@@ -1474,50 +1431,6 @@ function updateEventLoop(){
   renderEventBanner();
   renderShop();
 }
-
-
-/* ================================================================
-   🚨 原因調査用：JavaScriptエラー画面
-   エラー発生時にiPhone上へ派手な赤色点滅画面を表示する。
-   ゲーム本体の仕様・保存データ・SAVE_KEYは変更しない。
-   ================================================================ */
-let lastJsErrorText="";
-
-function showJsError(errorText){
-  lastJsErrorText=String(errorText||"不明なJavaScriptエラー");
-  const overlay=document.getElementById("jsErrorOverlay");
-  const box=document.getElementById("jsErrorMessage");
-  if(!overlay||!box)return;
-  box.textContent=lastJsErrorText;
-  overlay.classList.add("show");
-}
-
-function hideJsError(){
-  const overlay=document.getElementById("jsErrorOverlay");
-  if(overlay)overlay.classList.remove("show");
-}
-
-window.addEventListener("error",(event)=>{
-  const message=event.message||"Unknown error";
-  const source=event.filename||"unknown source";
-  const line=event.lineno||"?";
-  const column=event.colno||"?";
-  const stack=event.error&&event.error.stack ? "\n\nSTACK:\n"+event.error.stack : "";
-  showJsError(
-    "MESSAGE:\n"+message+
-    "\n\nSOURCE:\n"+source+
-    "\n\nLINE: "+line+"  COLUMN: "+column+
-    stack
-  );
-});
-
-window.addEventListener("unhandledrejection",(event)=>{
-  const reason=event.reason;
-  const message=reason&&reason.stack
-    ? String(reason.stack)
-    : String(reason||"Unknown Promise rejection");
-  showJsError("UNHANDLED PROMISE REJECTION:\n\n"+message);
-});
 
 loadGame();
 render();
