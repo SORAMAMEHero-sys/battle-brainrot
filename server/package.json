@@ -1,0 +1,19 @@
+
+  "name": "battle-the-brainrot-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Server API foundation for バトル・ザ・ブレインロット",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.1.0",
+    "helmet": "^8.1.0"
+  }
+}
