@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Battle The Brainrot API Test</title>
+<style>
+body{
+  font-family:system-ui,sans-serif;
+  background:#111;
+  color:#fff;
+  padding:20px;
+  max-width:700px;
+  margin:auto;
+}
+button{
+  display:block;
+  width:100%;
+  padding:14px;
+  margin:10px 0;
+  font-size:16px;
+}
+pre{
+  white-space:pre-wrap;
+  background:#222;
+  padding:15px;
+  border-radius:10px;
+  overflow:auto;
+}
+input{
+  width:100%;
+  box-sizing:border-box;
+  padding:12px;
+  margin:6px 0;
+}
+</style>
+</head>
+
+<body>
+<h1>🧪 Battle The Brainrot API Test</h1>
+
+<button onclick="createAccount()">① アカウント作成</button>
+
+<input id="playerId" placeholder="Player ID">
+<input id="password" placeholder="Password" type="password">
+
+<button onclick="login()">② ログイン</button>
+<button onclick="saveGame()">③ セーブ保存</button>
+<button onclick="loadGame()">④ セーブ読み込み</button>
+<button onclick="logout()">⑤ ログアウト</button>
+
+<pre id="result">ここに結果が表示されます。</pre>
+
+<script>
+const API =
+  "https://battle-the-brainrot-api.fujingda177.workers.dev";
+
+let token = "";
+
+function show(data){
+  document.getElementById("result").textContent =
+    JSON.stringify(data,null,2);
+}
+
+async function createAccount(){
+  try{
+    const res = await fetch(API + "/api/account/create",{
+      method:"POST"
+    });
+
+    const data = await res.json();
+    show(data);
+
+    if(data.ok){
+      document.getElementById("playerId").value =
+        data.playerId;
+
+      document.getElementById("password").value =
+        data.password;
+    }
+  }catch(e){
+    show({
+      ok:false,
+      error:String(e)
+    });
+  }
+}
+
+async function login(){
+  try{
+    const playerId =
+      document.getElementById("playerId").value;
+
+    const password =
+      document.getElementById("password").value;
+
+    const res = await fetch(API + "/api/account/login",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        playerId,
+        password
+      })
+    });
+
+    const data = await res.json();
+    show(data);
+
+    if(data.ok){
+      token = data.token;
+    }
+  }catch(e){
+    show({
+      ok:false,
+      error:String(e)
+    });
+  }
+}
+
+async function saveGame(){
+  if(!token){
+    show({
+      ok:false,
+      error:"先にログインしてください"
+    });
+    return;
+  }
+
+  try{
+    const testSave = {
+      test:true,
+      gold:123,
+      inventory:[],
+      equipped:[],
+      savedAt:new Date().toISOString()
+    };
+
+    const res = await fetch(API + "/api/save",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "Authorization":"Bearer " + token
+      },
+      body:JSON.stringify({
+        saveData:JSON.stringify(testSave)
+      })
+    });
+
+    const data = await res.json();
+    show(data);
+  }catch(e){
+    show({
+      ok:false,
+      error:String(e)
+    });
+  }
+}
+
+async function loadGame(){
+  if(!token){
+    show({
+      ok:false,
+      error:"先にログインしてください"
+    });
+    return;
+  }
+
+  try{
+    const res = await fetch(API + "/api/save",{
+      method:"GET",
+      headers:{
+        "Authorization":"Bearer " + token
+      }
+    });
+
+    const data = await res.json();
+    show(data);
+  }catch(e){
+    show({
+      ok:false,
+      error:String(e)
+    });
+  }
+}
+
+async function logout(){
+  if(!token){
+    show({
+      ok:false,
+      error:"ログインしていません"
+    });
+    return;
+  }
+
+  try{
+    const res = await fetch(API + "/api/account/logout",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer " + token
+      }
+    });
+
+    const data = await res.json();
+
+    token = "";
+
+    show(data);
+  }catch(e){
+    show({
+      ok:false,
+      error:String(e)
+    });
+  }
+}
+</script>
+
+</body>
+</html>
