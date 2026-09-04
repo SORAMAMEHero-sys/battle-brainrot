@@ -267,7 +267,16 @@ const characters = [
   {id:"manemane", name:"マネマネパギー", rarity:"シークレット", hp:40, power:29, image:"IMG_3258.webp", drop:.50, fusePoint:0, secretRate:15},
   {id:"worL", name:"W or L", rarity:"シークレット", hp:42, power:30, image:"IMG_3259.jpeg", drop:.50, fusePoint:0, secretRate:15},
   {id:"seveneleven", name:"711", rarity:"ゴット", hp:17, power:17, image:"IMG_3260.png", drop:.50, fusePoint:5},
-  {id:"hydradragon", name:"ハイドラドラゴン", rarity:"Extra", hp:135, power:135, image:"IMG_3283.jpeg", drop:0, fusePoint:60, extremeCraftOnly:true}
+  {id:"hydradragon", name:"ハイドラドラゴン", rarity:"Extra", hp:135, power:135, image:"IMG_3283.jpeg", drop:0, fusePoint:60, extremeCraftOnly:true},
+　{id:"odin", name:"オディンディン", rarity:"ゴット", hp:14, power:22, image:"IMG_3282.webp", drop:.50, fusePoint:5},
+
+  {id:"fragolalala", name:"フラゴララララ", rarity:"ゴット", hp:23, power:13, image:"IMG_3281.webp", drop:.50, fusePoint:5},
+
+  {id:"lasecret", name:"ラ・シークレットコンビネーション", rarity:"シークレット", hp:150, power:150, image:"IMG_3280.jpeg", drop:0, fusePoint:50, fuseOnly:true},
+
+  {id:"griffin", name:"グリフィン", rarity:"エクストラ", hp:140, power:140, image:"IMG_3284.jpeg", drop:.20, fusePoint:75},
+
+  {id:"cerberus", name:"ケルベロス", rarity:"エクストラ", hp:110, power:110, image:"IMG_3285.jpeg", drop:.30, fusePoint:70}
 ];
 
 const CRAFT_RECIPES = [
@@ -350,15 +359,27 @@ const SECRET_RATES = [
   {id:"caneloni", rate:2},
   {id:"onion", rate:13},
   {id:"manemane", rate:15},
-  {id:"worL", rate:15}
+  {id:"worL", rate:15},
 ];
 
 const FUSE_TABLE = [
   {min:1,max:5, rows:[["job",50],["garama",50]]},
+
   {min:6,max:10, rows:[["job",50],["garama",43],["aaa",7]]},
+
   {min:11,max:25, rows:[["bros",50],["aaa",46],["pakurah",4]]},
+
   {min:26,max:40, rows:[["bros",10],["pakurah",70],["swagmango",19],["spaghetti",1]]},
-  {min:41,max:Infinity, rows:[["pakurah",20],["swagmango",75],["spaghetti",5]]}
+
+  {min:41,max:50, rows:[["pakurah",20],["swagmango",75],["spaghetti",5]]},
+
+  {min:51,max:65, rows:[["pakurah",30],["swagmango",20],["spaghetti",47],["caneloni",3]]},
+
+  {min:66,max:99, rows:[["pakurah",47],["spaghetti",45],["caneloni",8]]},
+
+  {min:100,max:149, rows:[["manemane",20],["worL",20],["caneloni",58],["gorgonzola",2]]},
+
+  {min:150,max:Infinity, rows:[["caneloni",20],["gorgonzola",75],["lasecret",5]]}
 ];
 
 let inventory = [];
@@ -1270,9 +1291,13 @@ function createEnemy(){
   let c;
   if(rarity==="シークレット")c=getCharacter(pickSecret());
   else if(rarity==="エクストラ"){
-    const pool=characters.filter(x=>(x.rarity==="エクストラ"||x.rarity==="Extra") && !x.craftOnly && !x.special && x.id!=="hydradragon");
-    c=pool[Math.floor(Math.random()*pool.length)];
-  }else{
+  const extraPool=[
+    {id:"gorgonzola",rate:50},
+    {id:"griffin",rate:30},
+    {id:"cerberus",rate:20}
+  ];
+  c=getCharacter(weightedChoice(extraPool));
+}else{
     const pool=characters.filter(x=>x.rarity===rarity && !x.craftOnly && !x.special);
     c=pool[Math.floor(Math.random()*pool.length)];
   }
