@@ -212,6 +212,7 @@ h1,h2,h3{margin:5px 0 10px}
 
 <script>
 const SAVE_KEY = "battleTheBrainrotSave";
+let dropRatePenalty = false;
 
 const MUTATIONS = {
   fire:  {name:"⚡️変異", key:"fire", attack:1.5, hp:1},
@@ -427,18 +428,354 @@ function defaultInventory(){
   ];
 }
 
-function normalizeItem(item){
+const SAVE_XOR_KEY = "BTBR_SafeSave_2026_X9p7K2";
+const SAVE_FORMAT_VERSION = "BTR1";
+const SAVE_PENALTY_KEY = "dropRatePenalty";
+
+function xorString(text,key){
+  let out="";
+  for(let i=0;i<text.length;i++){
+    out += String.fromCharCode(
+      text.charCodeAt(i) ^ key.charCodeAt(i % key.length)
+    );
+  }
+  return out;
+}
+
+function bytesToBase64(bytes){
+  let binary="";
+  const chunk=0x8000;
+
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode(
+      ...bytes.subarray(i,i+chunk)
+    );
+  }
+
+  return btoa(binary);
+}
+
+function base64ToBytes(base64){
+  const binary=atob(base64);
+  const bytes=new Uint8Array(binary.length);
+
+  for(let i=0;i<binary.length;i++){
+    bytes[i]=binary.charCodeAt(i);
+  }
+
+  return bytes;
+}
+
+function encodeSavePayload(obj){
+  const json=JSON.stringify(obj);
+  const encrypted=xorString(json,SAVE_XOR_KEY);
+
+  return bytesToBase64(
+    new TextEncoder().encode(encrypted)
+  );
+}
+
+function decodeSavePayload(base64){
+  const encrypted=new TextDecoder().decode(
+    base64ToBytes(base64)
+  );
+
+  return JSON.parse(
+    xorString(encrypted,SAVE_XOR_KEY)
+  );
+}
+
+function checksumText(text){
+  let h1=0x811c9dc5;
+  let h2=0x9e3779b9;
+
+  const input=text+"|"+SAVE_XOR_KEY;
+
+  for(let i=0;i<input.length;i++){
+    const c=input.charCodeAt(i);
+
+    h1=Math.imul(h1^c,16777619);
+
+    h2=Math.imul(
+      h2^(c+i),
+      2246822519
+    );
+
+    h2=(h2<<13)|(h2>>>19);
+  }
+
+  return (
+    (h1>>>0).toString(16).padStart(8,"0")+
+    (h2>>>0).toString(16).padStart(8,"0")
+  );
+}
+
+function strictNumber(value,fallback,min,max,integer=false){
+  if(
+    typeof value!=="number" ||
+    !Number.isFinite(value)
+  ){
+    return fallback;
+  }
+
+  if(integer && !Number.isInteger(value)){
+    return fallback;
+  }
+
+  return Math.max(
+    min,
+    Math.min(max,value)
+  );
+}
+
+function sanitizeItem(item){
+  if(!item || typeof item!=="object"){
+    return null;
+  }
+
+  const c=getCharacter(item.id);
+
+  if(!c){
+    return null;
+  }
+
+  const mutations=Array.isArray(item.mutations)
+    ? [...new Set(
+        item.mutations.filter(
+          x=>typeof x==="string" && !!MUTATIONS[x]
+        )
+      )]
+    : [];
+
+  const books=Array.isArray(item.books)
+    ? [...new Set(
+        item.books.filter(
+          x=>typeof x==="string" && !!SKILL_BOOKS[x]
+        )
+      )].slice(0,MAX_BOOKS_PER_CHARACTER)
+    : [];
+
   return {
-    uid:item.uid || uid(),
-    id:item.id,
-    star:Number.isFinite(Number(item.star)) ? Math.max(0,Math.min(10,Number(item.star))) : 0,
-    mutations:Array.isArray(item.mutations) ? [...new Set(item.mutations.filter(x=>MUTATIONS[x]))] : [],
-    books:Array.isArray(item.books) ? [...new Set(item.books.filter(x=>SKILL_BOOKS[x]))].slice(0,MAX_BOOKS_PER_CHARACTER) : []
+    uid:
+      typeof item.uid==="string" &&
+      item.uid.trim()
+        ? item.uid
+        : uid(),
+
+    id:c.id,
+
+    star:strictNumber(
+      item.star,
+      0,
+      0,
+      10,
+      true
+    ),
+
+    mutations,
+    books
   };
 }
 
+function createFreshSaveState(penalty=false){
+  const fresh=defaultInventory();
+  const unlocked={};
+
+  fresh.forEach(item=>{
+    unlocked[item.id]=true;
+  });
+
+  return {
+    inventory:fresh,
+    equipped:fresh.map(x=>x.uid),
+    gold:0,
+    shopBooks:[],
+    shopSlot:-1,
+    showDropOverlaySetting:true,
+    autoSellLowRarity:false,
+    encyclopediaUnlocked:unlocked,
+    speed3Unlocked:false,
+    speed5Unlocked:false,
+    extremeCraftUnlocked:false,
+    [SAVE_PENALTY_KEY]:!!penalty
+  };
+}
+
+function sanitizeSaveData(data){
+  if(
+    !data ||
+    typeof data!=="object" ||
+    Array.isArray(data)
+  ){
+    return null;
+  }
+
+  if(!Array.isArray(data.inventory)){
+    return null;
+  }
+
+  const seen=new Set();
+  const cleanInventory=[];
+
+  for(const rawItem of data.inventory){
+    const item=sanitizeItem(rawItem);
+
+    if(!item)continue;
+
+    if(seen.has(item.uid)){
+      item.uid=uid();
+    }
+
+    seen.add(item.uid);
+    cleanInventory.push(item);
+  }
+
+  const validUids=new Set(
+    cleanInventory.map(x=>x.uid)
+  );
+
+  const cleanEquipped=Array.isArray(data.equipped)
+    ? [
+        ...new Set(
+          data.equipped.filter(
+            x=>
+              typeof x==="string" &&
+              validUids.has(x)
+          )
+        )
+      ].slice(0,3)
+    : [];
+
+  const cleanBooks=Array.isArray(data.shopBooks)
+    ? [
+        ...new Set(
+          data.shopBooks.filter(
+            x=>
+              typeof x==="string" &&
+              !!SKILL_BOOKS[x]
+          )
+        )
+      ].slice(0,3)
+    : [];
+
+  const cleanEncyclopedia={};
+
+  if(
+    data.encyclopediaUnlocked &&
+    typeof data.encyclopediaUnlocked==="object" &&
+    !Array.isArray(data.encyclopediaUnlocked)
+  ){
+    characters.forEach(c=>{
+      if(data.encyclopediaUnlocked[c.id]===true){
+        cleanEncyclopedia[c.id]=true;
+      }
+    });
+  }
+
+  cleanInventory.forEach(item=>{
+    cleanEncyclopedia[item.id]=true;
+  });
+
+  return {
+    inventory:cleanInventory,
+    equipped:cleanEquipped,
+
+    gold:strictNumber(
+      data.gold,
+      0,
+      0,
+      Number.MAX_SAFE_INTEGER,
+      true
+    ),
+
+    shopBooks:cleanBooks,
+
+    shopSlot:strictNumber(
+      data.shopSlot,
+      -1,
+      -1,
+      Number.MAX_SAFE_INTEGER,
+      true
+    ),
+
+    showDropOverlaySetting:
+      data.showDropOverlaySetting===false
+        ? false
+        : true,
+
+    autoSellLowRarity:
+      data.autoSellLowRarity===true,
+
+    encyclopediaUnlocked:
+      cleanEncyclopedia,
+
+    speed3Unlocked:
+      data.speed3Unlocked===true,
+
+    speed5Unlocked:
+      data.speed5Unlocked===true,
+
+    extremeCraftUnlocked:
+      data.extremeCraftUnlocked===true,
+
+    [SAVE_PENALTY_KEY]:
+      data[SAVE_PENALTY_KEY]===true
+  };
+}
+
+function applySaveState(data){
+  inventory=data.inventory;
+  equipped=data.equipped;
+  gold=data.gold;
+  shopBooks=data.shopBooks;
+  shopSlot=data.shopSlot;
+
+  showDropOverlaySetting=
+    data.showDropOverlaySetting;
+
+  autoSellLowRarity=
+    data.autoSellLowRarity;
+
+  encyclopediaUnlocked=
+    data.encyclopediaUnlocked;
+
+  speed3Unlocked=
+    data.speed3Unlocked;
+
+  speed5Unlocked=
+    data.speed5Unlocked;
+
+  extremeCraftUnlocked=
+    data.extremeCraftUnlocked;
+
+  dropRatePenalty=
+    data[SAVE_PENALTY_KEY]===true;
+}
+
+function writeSecureSave(data){
+  const clean=sanitizeSaveData(data);
+
+  if(!clean){
+    throw new Error("INVALID_SAVE_STATE");
+  }
+
+  const payload=encodeSavePayload(clean);
+  const checksum=checksumText(payload);
+
+  localStorage.setItem(
+    SAVE_KEY,
+    SAVE_FORMAT_VERSION+
+    "|"+
+    checksum+
+    "|"+
+    payload
+  );
+
+  applySaveState(clean);
+}
+
 function saveGame(){
-  localStorage.setItem(SAVE_KEY,JSON.stringify({
+  writeSecureSave({
     inventory,
     equipped,
     gold,
@@ -449,46 +786,31 @@ function saveGame(){
     encyclopediaUnlocked,
     speed3Unlocked,
     speed5Unlocked,
-    extremeCraftUnlocked
-  }));
+    extremeCraftUnlocked,
+    [SAVE_PENALTY_KEY]:
+      dropRatePenalty
+  });
 }
 
-function loadGame(){
+function handleSaveSecurityFailure(reason){
   try{
-    const raw=localStorage.getItem(SAVE_KEY);
-    if(!raw){
-      inventory=defaultInventory();
-      equipped=inventory.map(x=>x.uid);
-      encyclopediaUnlocked = {};
-      inventory.forEach(item=>encyclopediaUnlocked[item.id]=true);
-      saveGame();
-      setTimeout(()=>log("🎁 初回プレイ！コモン3種を獲得！"),0);
-    }else{
-      const data=JSON.parse(raw);
-      inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(x=>getCharacter(x.id)) : defaultInventory();
-      equipped=Array.isArray(data.equipped) ? data.equipped.filter(uid=>inventory.some(x=>x.uid===uid)) : [];
-      gold=Number.isFinite(Number(data.gold))?Number(data.gold):0;
-      shopBooks=Array.isArray(data.shopBooks)?data.shopBooks.filter(x=>SKILL_BOOKS[x]):[];
-      shopSlot=Number.isFinite(Number(data.shopSlot))?Number(data.shopSlot):-1;
-      showDropOverlaySetting = data.showDropOverlaySetting !== false;
-      autoSellLowRarity = data.autoSellLowRarity === true;
-      speed3Unlocked = !!data.speed3Unlocked;
-      speed5Unlocked = !!data.speed5Unlocked;
-      extremeCraftUnlocked = !!data.extremeCraftUnlocked;
+    localStorage.removeItem(SAVE_KEY);
+  }catch(e){}
 
-      encyclopediaUnlocked = data.encyclopediaUnlocked && typeof data.encyclopediaUnlocked === "object" ? data.encyclopediaUnlocked : {};
-      inventory.forEach(item=>encyclopediaUnlocked[item.id]=true);
-      saveGame();
-    }
-  }catch(e){
-    inventory=defaultInventory();
-    equipped=inventory.map(x=>x.uid);
-    encyclopediaUnlocked={};
-    inventory.forEach(item=>encyclopediaUnlocked[item.id]=true);
-    saveGame();
-  }
-}
+  const fresh=createFreshSaveState(true);
 
+  applySaveState(fresh);
+
+  try{
+    writeSecureSave(fresh);
+  }catch(e){}
+
+  setTimeout(()=>{
+    showModal(
+      "🚨 セーブデータエラー",
+
+      "セーブデータの異常を検知しました。\n"+
+      "安全のため以前のセーブ
 function getCharacter(id){return characters.find(c=>c.id===id)}
 function getOwned(uid){return inventory.find(x=>x.uid===uid)}
 
@@ -1399,7 +1721,9 @@ function winEnemy(){
   const mutations=rollMutations();
   if(mutations.length)log("🧬 "+mutationNames(mutations).join(" / ")+" が発生！");
 
-  const effectiveDrop=Math.min(1,defeated.drop*serverLuckMultiplier());
+  const effectiveDrop = dropRatePenalty
+  ? 0
+  : Math.min(1,defeated.drop*serverLuckMultiplier());
   if(Math.random()<effectiveDrop){
     const item={uid:uid(),id:defeated.id,star:0,mutations,books:[]};
     encyclopediaUnlocked[defeated.id]=true;
