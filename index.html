@@ -1038,7 +1038,21 @@ function renderInventory(){
 function renderEncyclopedia(){
   const box=document.getElementById("encyclopedia");
   box.innerHTML="";
-  characters.forEach(c=>{
+  [...characters].sort((a,b)=>{
+  const order={
+    "コモン":1,
+    "レア":2,
+    "ゴット":3,
+    "シークレット":4,
+    "エクストラ":5,
+    "Extra":5
+  };
+
+  const oa=order[a.rarity] ?? 6;
+  const ob=order[b.rarity] ?? 6;
+
+  return oa-ob;
+}).forEach(c=>{
     const found = !!encyclopediaUnlocked[c.id] || inventory.some(x=>x.id===c.id);
     if(found && !encyclopediaUnlocked[c.id]){
       encyclopediaUnlocked[c.id] = true;
