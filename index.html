@@ -54,7 +54,204 @@ h1,h2,h3{margin:5px 0 10px}
 .speed-on{background:#111!important;color:#fff!important;border:2px solid #fff!important}
 .setting-row{display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
-@media(max-width:700px){.enemy-area{grid-template-columns:1fr}.enemy-image{height:210px}}
+html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+}
+
+#app{
+  width:100%;
+  max-width:1100px;
+  margin:0 auto;
+  padding:12px;
+}
+
+.panel{
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+}
+
+.row{
+  width:100%;
+  min-width:0;
+}
+
+.enemy-area{
+  width:100%;
+  min-width:0;
+}
+
+.enemy-image{
+  display:block;
+  width:100%;
+  max-width:100%;
+  height:260px;
+}
+
+.character-grid{
+  width:100%;
+  min-width:0;
+  grid-template-columns:repeat(auto-fit,minmax(min(145px,100%),1fr));
+}
+
+.card,
+.select-card{
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+}
+
+.card img,
+.select-card img{
+  display:block;
+  width:100%;
+  max-width:100%;
+}
+
+.card-name,
+.card-info,
+.small{
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+
+.card button,
+.main-btn,
+.modal button{
+  max-width:100%;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+.machine{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  overflow:hidden;
+}
+
+.machine-grid{
+  width:100%;
+  min-width:0;
+  grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr));
+}
+
+.probability-box,
+#battleLog,
+#shopBooks,
+#rarityDebugStats,
+#rarityDebugSimulation{
+  max-width:100%;
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+
+@media(max-width:700px){
+  #app{
+    padding:8px;
+  }
+
+  .panel{
+    padding:10px;
+    border-radius:12px;
+  }
+
+  .enemy-area{
+    grid-template-columns:1fr;
+  }
+
+  .enemy-image{
+    height:210px;
+  }
+
+  .row{
+    gap:7px;
+  }
+
+  .row > button{
+    flex:1 1 140px;
+    min-width:0;
+  }
+
+  .character-grid{
+    grid-template-columns:repeat(auto-fit,minmax(125px,1fr));
+    gap:7px;
+  }
+
+  .card{
+    padding:7px;
+  }
+
+  .card img{
+    height:100px;
+  }
+
+  .card-name{
+    font-size:13px;
+  }
+
+  .card-info{
+    font-size:12px;
+  }
+
+  .machine-grid{
+    grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  }
+
+  .select-card{
+    min-width:0;
+  }
+
+  .select-card img{
+    height:70px;
+  }
+
+  h1{
+    font-size:24px;
+  }
+
+  h2{
+    font-size:19px;
+  }
+}
+
+@media(max-width:380px){
+  #app{
+    padding:5px;
+  }
+
+  .panel{
+    padding:8px;
+    margin-bottom:8px;
+  }
+
+  .character-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .machine-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .enemy-image{
+    height:180px;
+  }
+
+  .row > button{
+    flex:1 1 100%;
+  }
+
+  #totalStats{
+    font-size:17px;
+  }
+
+  .card img{
+    height:90px;
+  }
+}
 </style>
 </head>
 <body>
@@ -819,7 +1016,13 @@ function renderInventory(){
       "<br>⚔️ 火力："+s.power+
       "<br>🔥 Fuse P："+c.fusePoint+"</div>"+
       mutationHTML(item.mutations)+bookHTML(item.books)+
-      "<button onclick=\"toggleEquip('"+item.uid+"')\">"+(isEq?"装備解除":"装備")+"</button>"+
+      "<button "+
+  (battleRunning?"disabled":"")+
+  " onclick=\"toggleEquip('"+item.uid+"')\">"+
+  (battleRunning
+    ? "🔒 装備変更不可"
+    : (isEq?"装備解除":"装備"))+
+  "</button>"+
       "<button onclick=\"sellCharacter('"+item.uid+"')\" class='danger'>売却</button>";
     if((item.books||[]).length){
       item.books.forEach(bookKey=>{
@@ -1199,14 +1402,24 @@ function fuseMachineExecute(){
 }
 
 function toggleEquip(itemUid){
+  if(battleRunning){
+    toast("🔒 バトル中は装備を変更できません");
+    return;
+  }
+
   if(equipped.includes(itemUid)){
     equipped=equipped.filter(x=>x!==itemUid);
     delete battleHP[itemUid];
   }else{
-    if(equipped.length>=3){toast("装備できるのは3体までです");return}
+    if(equipped.length>=3){
+      toast("装備できるのは3体までです");
+      return;
+    }
     equipped.push(itemUid);
   }
-  saveGame();render();
+
+  saveGame();
+  render();
 }
 
 function sellCharacter(itemUid){
