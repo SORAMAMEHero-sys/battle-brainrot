@@ -1434,10 +1434,23 @@ function sellCharacter(itemUid){
   }else confirmOne("キャラの売却",c.name+" ★"+item.star+" を売却しますか？",()=>doSell(itemUid));
 }
 function doSell(itemUid){
+  const item=getOwned(itemUid);
+  if(!item)return;
+
+  const c=getCharacter(item.id);
+  if(!c)return;
+
+  const sellGold=getSellGold(item);
+
   inventory=inventory.filter(x=>x.uid!==itemUid);
   equipped=equipped.filter(x=>x!==itemUid);
   delete battleHP[itemUid];
-  saveGame();render();toast("🗑️ 売却しました");
+
+  gold+=sellGold;
+
+  saveGame();
+  render();
+  toast("💰 "+sellGold+"G 獲得！ "+c.name+" ★"+item.star+"を売却しました");
 }
 function confirmOne(title,text,ok){
   showModal(title,text,[["キャンセル",closeModal],["売却する",()=>{closeModal();ok()}]]);
