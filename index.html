@@ -58,8 +58,6 @@ h1,h2,h3{margin:5px 0 10px}
 </style>
 </head>
 <body>
-<button onclick="giveTestGorgonzola()">
-
 <div id="app">
   <div class="panel">
     <h1 id="gameTitle">🧠⚔️ バトル・ザ・ブレインロット</h1>
@@ -223,7 +221,6 @@ const MUTATIONS = {
   demon: {name:"😈悪魔変異", key:"demon", attack:1, hp:1}
 };
 
-
 const SKILL_BOOKS = {
   statusResist: {name:"状態異常耐性の本", effect:"状態異常時間20%カット", price:150},
   attackUp: {name:"攻撃力アップの本", effect:"攻撃力1.3倍", price:100},
@@ -233,23 +230,6 @@ const SKILL_BOOKS = {
   extremeHpUp: {name:"極・体力アップの本", effect:"体力1.75倍", price:3000},
   extremeDodge: {name:"極・回避の本", effect:"回避35%", price:5500}
 };
-
-function giveTestGorgonzola(){
-  const item = {
-    uid: uid(),
-    id: "gorgonzola",
-    star: 0,
-    mutations: [],
-    books: []
-  };
-
-  inventory.push(item);
-  saveGame();
-  render();
-
-  log("🧪 テスト：ゴルゴンジーラを獲得！");
-  toast("ゴルゴンジーラを獲得しました！");
-}
 
 const MAX_BOOKS_PER_CHARACTER = 3;
 const BOOK_CANCEL_COST = 1000;
