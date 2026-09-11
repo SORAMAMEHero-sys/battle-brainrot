@@ -676,6 +676,7 @@ function defaultInventory(){
 }
 
 function normalizeItem(item){
+  if(!item || typeof item!=="object" || !item.id)return null;
   return {
     uid:item.uid || uid(),
     id:item.id,
@@ -715,7 +716,7 @@ function loadGame(){
       setTimeout(()=>log("🎁 初回プレイ！コモン3種を獲得！"),0);
     }else{
       const data=JSON.parse(raw);
-      inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(x=>getCharacter(x.id)) : defaultInventory();
+      inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(Boolean) : defaultInventory();
       equipped=Array.isArray(data.equipped) ? data.equipped.filter(uid=>inventory.some(x=>x.uid===uid)) : [];
       gold=Number.isFinite(Number(data.gold))?Math.max(0,Number(data.gold)):0;
       beanDollars=Number.isFinite(Number(data.beanDollars))?Math.max(0,Number(data.beanDollars)):0;
@@ -967,7 +968,8 @@ function cancelBook(itemUid,bookKey){
 }
 
 function statsOf(item){
-  const c=getCharacter(item.id);
+  const c=getCharacter(item?.id);
+  if(!c)return {hp:0,power:0};
   let hp=(c.hp + item.star*2)*7;
   let power=c.power + item.star*2;
 
@@ -993,8 +995,11 @@ function calculateStrength(item){
 }
 
 function sortCharactersByStrength(list){
-  // 古い/不正なセーブ項目が1件混ざっていても、表示全体を止めない
-  return [...list].filter(item=>item && getCharacter(item.id)).sort((a, b) => {
+  return [...list].filter(Boolean).sort((a, b) => {
+    const ca=getCharacter(a.id), cb=getCharacter(b.id);
+    if(!ca && !cb)return 0;
+    if(!ca)return 1;
+    if(!cb)return -1;
     const sa = statsOf(a);
     const sb = statsOf(b);
     const totalA = sa.hp + sa.power;
@@ -1157,7 +1162,9 @@ function renderTotals(){
   for(const itemUid of equipped){
     const item=getOwned(itemUid);
     if(!item)continue;
-    const s=statsOf(item),c=getCharacter(item.id);
+    const c=getCharacter(item.id);
+    if(!c)continue;
+    const s=statsOf(item);
     const current= battleRunning && battleHP[item.uid]!=null ? Math.max(0,Math.round(battleHP[item.uid])) : s.hp;
     hp+=current;
     power+=s.power;
@@ -1171,14 +1178,9 @@ function renderTotals(){
 
 function renderInventory(){
   const box=document.getElementById("characterList");
-  if(!box)return;
+  if(!inventory.length){box.innerHTML="<div class='small'>所持キャラなし</div>";return}
+  box.innerHTML="";
   const sortedList = sortCharactersByStrength(inventory);
-  if(!sortedList.length){
-    box.innerHTML=inventory.length ? "<div class='small'>表示できる所持キャラがありません</div>" : "<div class='small'>所持キャラなし</div>";
-    return;
-  }
-  // 途中で1件が壊れていても、他のキャラは最後まで表示する
-  const fragment=document.createDocumentFragment();
   sortedList.forEach(item=>{
     const c=getCharacter(item.id);
     if(!c)return;
@@ -1207,9 +1209,8 @@ function renderInventory(){
         div.innerHTML+="<button onclick=\"cancelBook('"+item.uid+"','"+bookKey+"')\">📖 "+SKILL_BOOKS[bookKey].name+"を取り消す（1000G）</button>";
       });
     }
-    fragment.appendChild(div);
+    box.appendChild(div);
   });
-  box.replaceChildren(fragment);
 }
 
 function renderEncyclopedia(){
@@ -1794,20 +1795,13 @@ function stopBattle(){
 function playerAttack(){
   if(!battleRunning||!enemy)return;
   let damage=0;
-  const attacks=[];
   equipped.forEach(itemUid=>{
     const item=getOwned(itemUid);
-    if(!item || battleHP[item.uid]<=0)return;
-    const c=getCharacter(item.id);
-    if(!c)return;
-    const dealt=statsOf(item).power*getBattleAttackMultiplier(item.uid);
-    damage+=dealt;
-    attacks.push(c.name+" ★"+item.star+" → "+Math.round(dealt)+"ダメージ");
+    if(item&&battleHP[item.uid]>0)damage+=statsOf(item).power*getBattleAttackMultiplier(item.uid);
   });
   if(damage<=0)return;
   enemy.currentHP-=damage;
-  attacks.forEach(text=>log("⚔️ "+text));
-  log("💥 味方合計："+Math.round(damage)+"ダメージ！");
+  log("⚔️ 味方が合計"+damage+"ダメージ！");
   if(enemy.currentHP<=0){winEnemy();return}
   renderEnemy();renderTotals();renderInventory();
 }
