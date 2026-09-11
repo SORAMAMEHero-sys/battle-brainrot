@@ -51,8 +51,17 @@ h1,h2,h3{margin:5px 0 10px}
 .event-banner{border:2px solid #666;border-radius:12px;padding:10px;background:#151515;margin-bottom:12px;min-height:42px}
 .event-active{font-weight:bold}
 .admin-luck{font-size:18px;font-weight:bold}
-.speed-on{background:#111!important;color:#fff!important;border:2px solid #fff!important}
 .setting-row{display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer}
+.gear-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.gear-card{border:2px solid #555;background:#292929;border-radius:12px;padding:10px;min-width:0}
+.gear-card.equipped{border-color:#fff;box-shadow:0 0 0 1px #fff inset}
+.gear-name{font-weight:bold;font-size:16px;overflow-wrap:anywhere}
+.gear-type{font-size:12px;color:#bbb;margin-top:3px}
+.gear-desc{font-size:13px;margin-top:7px;line-height:1.45;overflow-wrap:anywhere}
+.gear-card button{border:0;border-radius:9px;padding:8px 10px;margin-top:8px;background:#444;color:#fff;max-width:100%;white-space:normal;overflow-wrap:anywhere}
+.gear-card button:hover{opacity:.85}
+.gear-card button:disabled{opacity:.45;cursor:not-allowed}
+.bean-box{background:#101010;border:1px solid #555;border-radius:10px;padding:10px;margin:8px 0}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
 html,
 body{
@@ -288,7 +297,6 @@ body{
       <button class="main-btn" onclick="startBattle()">▶ バトル開始</button>
       <button class="main-btn" onclick="openMachine()">⚙️ 合体マシン</button>
       <button class="main-btn" onclick="openFuseMachine()">🔥 ヒューズ</button>
-      <button class="main-btn" id="battleSpeedButton" onclick="toggleBattleSpeed()">⚡ 速度：1×</button>
     </div>
     <div id="battleLog"></div>
   </div>
@@ -357,6 +365,13 @@ body{
 
 
   <div class="panel">
+    <h2>🫘⚙️ マメドル＆ギア</h2>
+    <div id="beanDollarStatus" class="bean-box"></div>
+    <div class="small">装備中のキャラが毎秒マメドルを生産します。ギアは最大3個まで装備できます。1回のみのギアは装備枠を使わず、所持していれば使用できます。</div>
+    <div id="gearList" class="gear-grid" style="margin-top:10px"></div>
+  </div>
+
+  <div class="panel">
     <h2>⚙️ 設定</h2>
     <label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer">
       <input type="checkbox" id="showDropOverlaySetting" onchange="setShowDropOverlay(this.checked)">
@@ -418,6 +433,11 @@ const MUTATIONS = {
   demon: {name:"😈悪魔変異", key:"demon", attack:1, hp:1}
 };
 
+const STATUS_EFFECTS = {
+  weaken:{name:"😨 弱体化",duration:5000,attackMultiplier:0.5},
+  sleep:{name:"😴 眠り",duration:5000,canAct:false}
+};
+
 const SKILL_BOOKS = {
   statusResist: {name:"状態異常耐性の本", effect:"状態異常時間20%カット", price:150},
   attackUp: {name:"攻撃力アップの本", effect:"攻撃力1.3倍", price:100},
@@ -429,6 +449,32 @@ const SKILL_BOOKS = {
 };
 
 const MAX_BOOKS_PER_CHARACTER = 3;
+
+// 🫘 マメドル収入（1秒あたり）
+const BEAN_DOLLAR_INCOME = {
+  buruburu:1, tralalero:1, tung:1,
+  job:3, garama:3, girafini:3, turbo3000:3,
+  aaa:7, bros:7,
+  pakurah:20, swagmango:20, spaghetti:20,
+  caneloni:30, tralaledon:30,
+  losjob:10, megatrala:10,
+  paperpen:15, losgarama:15,
+  didi:20, breaking67:20,
+  turbo4000:20, turbo5000:50, turbo9000:190,
+  gorgonzola:100, manemane:100, worL:100, seveneleven:100, hydradragon:100, odin:100, fragolalala:100,
+  lasecret:150, griffin:100, cerberus:100,
+  sixtyseven:0
+};
+
+// ギア価格は未決定のため、ここでは購入価格を未設定として保持します。
+const GEARS = {
+  yumemegaphone:{name:"淫夢メガホン📣",type:"onoff",typeLabel:"ON/OFF式",price:null,desc:"戦闘開始時に敵のHPを15%減少。"},
+  yukkuri:{name:"ゆっくり戦闘していってね🍵",type:"onoff",typeLabel:"ON/OFF式",price:null,desc:"敵・味方の行動スピードを0.5倍速にする。"},
+  mitsukechau:{name:"俺じゃなきゃ見逃しちゃうねぇ😏",type:"once",typeLabel:"1回のみ",price:null,desc:"敵の攻撃を1回のみ確定で回避。"},
+  estint:{name:"とてもエスティント🤫",type:"onoff",typeLabel:"ON/OFF式",price:null,desc:"全員の回避率+15%。回避率は最大80%。"},
+  daizengenkafuka:{name:"大草原不可視🫥",type:"once",typeLabel:"1回のみ",price:null,desc:"使用すると5秒間、100%回避。"},
+  tasukete:{name:"助けて失神する！🦖",type:"onoff",typeLabel:"ON/OFF式",price:null,desc:"HPが0になっても最大HPの15%で復活。"}
+};
 const BOOK_CANCEL_COST = 1000;
 
 const characters = [
@@ -590,15 +636,18 @@ let battleRunning = false;
 let machineSelection = [];
 let fuseSelection = [];
 let battleHP = {};
+let battleStatus = {};
 let eventTimer = null;
 let gold = 0;
+let beanDollars = 0;
+let equippedGears = [];
+let gearOwned = {};
+let onceGearActive = {};
+let beanDollarTimer = null;
 let shopBooks = [];
 let shopSlot = -1;
-let battleSpeedSetting = 1; // 1, 2, 3, 5
 let autoSellLowRarity = false;
 let encyclopediaUnlocked = {};
-let speed3Unlocked = false;
-let speed5Unlocked = false;
 let extremeCraftUnlocked = false;
 
 let showDropOverlaySetting = true;
@@ -641,13 +690,15 @@ function saveGame(){
     inventory,
     equipped,
     gold,
+    beanDollars,
+    equippedGears,
+    gearOwned,
+    onceGearActive,
     shopBooks,
     shopSlot,
     showDropOverlaySetting,
     autoSellLowRarity,
     encyclopediaUnlocked,
-    speed3Unlocked,
-    speed5Unlocked,
     extremeCraftUnlocked
   }));
 }
@@ -666,13 +717,19 @@ function loadGame(){
       const data=JSON.parse(raw);
       inventory=Array.isArray(data.inventory) ? data.inventory.map(normalizeItem).filter(x=>getCharacter(x.id)) : defaultInventory();
       equipped=Array.isArray(data.equipped) ? data.equipped.filter(uid=>inventory.some(x=>x.uid===uid)) : [];
-      gold=Number.isFinite(Number(data.gold))?Number(data.gold):0;
+      gold=Number.isFinite(Number(data.gold))?Math.max(0,Number(data.gold)):0;
+      beanDollars=Number.isFinite(Number(data.beanDollars))?Math.max(0,Number(data.beanDollars)):0;
+      equippedGears=Array.isArray(data.equippedGears) ? data.equippedGears.filter(id=>GEARS[id] && GEARS[id].type==="onoff").slice(0,3) : [];
+      gearOwned=data.gearOwned && typeof data.gearOwned==="object" ? data.gearOwned : {};
+      Object.keys(GEARS).forEach(id=>{
+        const n=Number(gearOwned[id]);
+        gearOwned[id]=Number.isFinite(n)?Math.max(0,Math.floor(n)):0;
+      });
+      onceGearActive=data.onceGearActive && typeof data.onceGearActive==="object" ? data.onceGearActive : {};
       shopBooks=Array.isArray(data.shopBooks)?data.shopBooks.filter(x=>SKILL_BOOKS[x]):[];
       shopSlot=Number.isFinite(Number(data.shopSlot))?Number(data.shopSlot):-1;
       showDropOverlaySetting = data.showDropOverlaySetting !== false;
       autoSellLowRarity = data.autoSellLowRarity === true;
-      speed3Unlocked = !!data.speed3Unlocked;
-      speed5Unlocked = !!data.speed5Unlocked;
       extremeCraftUnlocked = !!data.extremeCraftUnlocked;
 
       encyclopediaUnlocked = data.encyclopediaUnlocked && typeof data.encyclopediaUnlocked === "object" ? data.encyclopediaUnlocked : {};
@@ -688,6 +745,144 @@ function loadGame(){
   }
 }
 
+function formatCompactNumber(value){
+  const n=Math.max(0,Number(value)||0);
+  if(n<1000)return Math.floor(n).toLocaleString("ja-JP");
+  const units=["K","M","B","T","Qa","Qi"];
+  let v=n, i=-1;
+  while(v>=1000 && i<units.length-1){v/=1000;i++;}
+  const digits=v>=100?0:v>=10?1:2;
+  return v.toFixed(digits).replace(/\.0+$|(?<=\.[0-9])0+$/g,"")+units[i];
+}
+
+function getBeanDollarIncomeForItem(item){
+  return BEAN_DOLLAR_INCOME[item?.id] || 0;
+}
+
+function getEquippedBeanDollarRate(){
+  return equipped.reduce((sum,itemUid)=>{
+    const item=getOwned(itemUid);
+    return sum + (item ? getBeanDollarIncomeForItem(item) : 0);
+  },0);
+}
+
+function addBeanDollars(amount){
+  if(!Number.isFinite(amount) || amount<=0)return;
+  beanDollars+=amount;
+  saveGame();
+  renderBeanDollarStatus();
+}
+
+function renderBeanDollarStatus(){
+  const box=document.getElementById("beanDollarStatus");
+  if(!box)return;
+  const rate=getEquippedBeanDollarRate();
+  box.innerHTML="🫘 マメドル：<b>"+formatCompactNumber(beanDollars)+" 🫘</b><br>📈 収入：<b>+"+formatCompactNumber(rate)+" 🫘/秒</b>";
+}
+
+function renderGears(){
+  const box=document.getElementById("gearList");
+  if(!box)return;
+  renderBeanDollarStatus();
+  box.innerHTML="";
+  Object.entries(GEARS).forEach(([id,gear])=>{
+    const owned=Number(gearOwned[id]||0);
+    const isEquipped=equippedGears.includes(id);
+    const onceActive=!!onceGearActive[id];
+    const div=document.createElement("div");
+    div.className="gear-card"+(isEquipped?" equipped":"");
+    let priceText=gear.price==null ? "価格：未設定" : "価格：🫘 "+formatCompactNumber(gear.price);
+    let buttons="";
+    if(gear.type==="onoff"){
+      buttons+=owned>0
+        ? "<button onclick=\"toggleGear('"+id+"')\">"+(isEquipped?"🔴 OFF / 装備解除":"🟢 ON / 装備")+"</button>"
+        : "<button disabled>価格未設定</button>";
+    }else{
+      buttons+=owned>0
+        ? "<button onclick=\"useOnceGear('"+id+"')\">"+(onceActive?"⏳ 発動中":"▶ 使う")+"</button>"
+        : "<button disabled>価格未設定</button>";
+      if(owned>0)buttons+="<div class='small' style='margin-top:5px'>所持："+owned+"個</div>";
+    }
+    div.innerHTML="<div class='gear-name'>"+gear.name+"</div>"+
+      "<div class='gear-type'>"+gear.typeLabel+"</div>"+
+      "<div class='gear-desc'>"+gear.desc+"</div>"+
+      "<div class='small' style='margin-top:7px'>"+priceText+"　所持："+owned+"個</div>"+
+      buttons;
+    box.appendChild(div);
+  });
+}
+
+function toggleGear(id){
+  const gear=GEARS[id];
+  if(!gear || gear.type!=="onoff" || !(gearOwned[id]>0))return;
+  if(equippedGears.includes(id)){
+    equippedGears=equippedGears.filter(x=>x!==id);
+    toast("⚙️ "+gear.name+"：OFF");
+  }else{
+    if(equippedGears.length>=3){toast("⚙️ ギアは3個まで装備できます");return;}
+    equippedGears.push(id);
+    toast("⚙️ "+gear.name+"：ON");
+  }
+  saveGame();
+  renderGears();
+}
+
+function useOnceGear(id){
+  const gear=GEARS[id];
+  if(!gear || gear.type!=="once" || !(gearOwned[id]>0))return;
+  if(id==="mitsukechau"){
+    if(onceGearActive[id]){toast("😏 すでに回避権が発動中です");return;}
+    onceGearActive[id]=true;
+    gearOwned[id]--;
+    toast("😏 次の敵の攻撃を確定回避！");
+  }else if(id==="daizengenkafuka"){
+    if(onceGearActive[id]){toast("🫥 すでに100%回避中です");return;}
+    onceGearActive[id]=Date.now()+5000;
+    gearOwned[id]--;
+    toast("🫥 5秒間、100%回避！");
+    setTimeout(()=>{
+      if(onceGearActive[id] && Date.now()>=onceGearActive[id]){
+        delete onceGearActive[id];
+        saveGame();
+        renderGears();
+      }
+    },5100);
+  }
+  saveGame();
+  renderGears();
+}
+
+function buyGear(id){
+  const gear=GEARS[id];
+  if(!gear || gear.price==null){toast("🫘 このギアの価格はまだ未設定です");return;}
+  if(beanDollars<gear.price){toast("🫘 マメドルが足りません");return;}
+  beanDollars-=gear.price;
+  gearOwned[id]=(gearOwned[id]||0)+1;
+  saveGame();
+  renderGears();
+  toast("⚙️ "+gear.name+"を購入しました！");
+}
+
+function isGearOn(id){return equippedGears.includes(id);}
+function getGearDodgeBonus(){
+  return isGearOn("estint") ? 0.15 : 0;
+}
+function getItemDodgeChance(item){
+  let chance=0;
+  const books=item?.books||[];
+  if(books.includes("dodge"))chance+=0.10;
+  if(books.includes("extremeDodge"))chance+=0.35;
+  chance+=getGearDodgeBonus();
+  return Math.min(0.80,chance);
+}
+function consumeOnceGear(id){
+  if(!onceGearActive[id])return false;
+  delete onceGearActive[id];
+  saveGame();
+  renderGears();
+  return true;
+}
+
 function getCharacter(id){return characters.find(c=>c.id===id)}
 function getOwned(uid){return inventory.find(x=>x.uid===uid)}
 
@@ -701,34 +896,6 @@ function setAutoSellLowRarity(enabled){
   autoSellLowRarity=!!enabled;
   saveGame();
   toast(autoSellLowRarity ? "💰 コモン・レア★0：自動売却ON" : "💰 自動売却：OFF");
-}
-
-function getAvailableSpeeds(){
-  let speeds=[1,2];
-  if(speed3Unlocked) speeds.push(3);
-  if(speed5Unlocked) speeds.push(5);
-  return speeds;
-}
-
-function toggleBattleSpeed(){
-  const speeds=getAvailableSpeeds();
-  const idx=speeds.indexOf(battleSpeedSetting);
-  battleSpeedSetting = speeds[(idx+1)%speeds.length];
-  renderSettings();
-  toast("⚡ バトル速度：" + battleSpeedSetting + "×");
-  if(battleRunning) startBattleTimers();
-}
-
-function renderSettings(){
-  const checkbox=document.getElementById("showDropOverlaySetting");
-  if(checkbox) checkbox.checked=showDropOverlaySetting;
-  const autoSell=document.getElementById("autoSellLowRaritySetting");
-  if(autoSell) autoSell.checked=autoSellLowRarity;
-  const speedButton=document.getElementById("battleSpeedButton");
-  if(speedButton){
-    speedButton.textContent="⚡ 速度：" + battleSpeedSetting + "×";
-    speedButton.classList.toggle("speed-on", battleSpeedSetting > 1);
-  }
 }
 
 function placeholderImage(c){
@@ -906,6 +1073,7 @@ function render(){
   renderCraftMachine();
   renderExtremeCraftMachine();
   renderFeatureMachine();
+  renderGears();
 }
 
 function renderEventBanner(){
@@ -1161,8 +1329,6 @@ function renderFeatureMachine(){
   box.innerHTML="";
 
   const features = [
-    {id:"speed3", name:"⚡ 3倍速", price:3000, desc:"バトル速度「3倍」を永久アンロック", unlocked:speed3Unlocked},
-    {id:"speed5", name:"⚡⚡ 5倍速", price:10000, desc:"バトル速度「5倍」を永久アンロック", unlocked:speed5Unlocked},
     {id:"extreme", name:"💀 極クラフトマシン", price:50000, desc:"「極クラフトマシン」を永久アンロック", unlocked:extremeCraftUnlocked}
   ];
 
@@ -1181,17 +1347,7 @@ function renderFeatureMachine(){
 
 function buyFeature(id, price){
   if(gold < price){toast("💰 ゴールドが足りません");return;}
-  if(id==="speed3"){
-    if(speed3Unlocked)return;
-    if(!spendGold(price))return;
-    speed3Unlocked=true;
-    toast("⚡ 3倍速をアンロックしました！");
-  }else if(id==="speed5"){
-    if(speed5Unlocked)return;
-    if(!spendGold(price))return;
-    speed5Unlocked=true;
-    toast("⚡⚡ 5倍速をアンロックしました！");
-  }else if(id==="extreme"){
+  if(id==="extreme"){
     if(extremeCraftUnlocked)return;
     if(!spendGold(price))return;
     extremeCraftUnlocked=true;
@@ -1553,9 +1709,11 @@ function createEnemy(){
     const pool=characters.filter(x=>x.rarity===rarity && !x.craftOnly && !x.special);
     c=pool[Math.floor(Math.random()*pool.length)];
   }
+  const baseEnemyHP=c.hp*23;
+  const gearAdjustedHP=isGearOn("yumemegaphone") ? baseEnemyHP*0.85 : baseEnemyHP;
   enemy={
     id:c.id,name:c.name,rarity:c.rarity,image:c.image,
-    hp:c.hp*23,currentHP:c.hp*23,power:c.power,
+    hp:gearAdjustedHP,currentHP:gearAdjustedHP,power:c.power,
     mutations:[]
   };
 
@@ -1565,6 +1723,7 @@ function createEnemy(){
 
 function resetBattleHP(){
   battleHP={};
+  battleStatus={};
   equipped.forEach(itemUid=>{
     const item=getOwned(itemUid);
     if(item)battleHP[itemUid]=statsOf(item).hp;
@@ -1572,10 +1731,30 @@ function resetBattleHP(){
 }
 
 function getBattleInterval(){
-  if(battleSpeedSetting === 5) return 200;
-  if(battleSpeedSetting === 3) return 333;
-  if(battleSpeedSetting === 2) return 500;
-  return 1000;
+  // 通常は1倍速（1秒ごと）。ゆっくりギアON時のみ0.5倍速。
+  return isGearOn("yukkuri") ? 2000 : 1000;
+}
+
+
+function applyBattleStatus(targetUid,statusKey){
+  const effect=STATUS_EFFECTS[statusKey];
+  if(!effect)return;
+  battleStatus[targetUid]=battleStatus[targetUid]||{};
+  battleStatus[targetUid][statusKey]=Date.now()+effect.duration;
+}
+
+function hasBattleStatus(targetUid,statusKey){
+  const end=battleStatus[targetUid]?.[statusKey];
+  if(!end)return false;
+  if(Date.now()>=end){
+    delete battleStatus[targetUid][statusKey];
+    return false;
+  }
+  return true;
+}
+
+function getBattleAttackMultiplier(targetUid){
+  return hasBattleStatus(targetUid,"weaken") ? 0.5 : 1;
 }
 
 function startBattleTimers(){
@@ -1590,9 +1769,10 @@ function startBattle(){
   if(battleRunning)return;
   if(equipped.length===0){toast("キャラを1体以上装備してください");return}
   battleRunning=true;
+  delete onceGearActive.tasukete;
   resetBattleHP();
   createEnemy();
-  log("⚔️ バトル開始！ ⚡速度：" + battleSpeedSetting + "×");
+  log("⚔️ バトル開始！");
   startBattleTimers();
 }
 
@@ -1607,7 +1787,7 @@ function playerAttack(){
   let damage=0;
   equipped.forEach(itemUid=>{
     const item=getOwned(itemUid);
-    if(item&&battleHP[item.uid]>0)damage+=statsOf(item).power;
+    if(item&&battleHP[item.uid]>0)damage+=statsOf(item).power*getBattleAttackMultiplier(item.uid);
   });
   if(damage<=0)return;
   enemy.currentHP-=damage;
@@ -1621,9 +1801,33 @@ function enemyAttack(){
   const active=equipped.map(itemUid=>getOwned(itemUid)).filter(item=>item&&battleHP[item.uid]>0);
   if(!active.length){loseBattle();return}
   active.forEach(target=>{
+    if(onceGearActive.daizengenkafuka){
+      log("🫥 大草原不可視！ "+getCharacter(target.id).name+" は攻撃を完全回避！");
+      return;
+    }
+    if(onceGearActive.mitsukechau){
+      consumeOnceGear("mitsukechau");
+      log("😏 俺じゃなきゃ見逃しちゃうねぇ！ "+getCharacter(target.id).name+" は攻撃を確定回避！");
+      return;
+    }
+    const dodge=getItemDodgeChance(target);
+    if(Math.random()<dodge){
+      log("💨 "+getCharacter(target.id).name+" が攻撃を回避！");
+      return;
+    }
     battleHP[target.uid]-=enemy.power;
     log("👹 "+enemy.name+" → "+getCharacter(target.id).name+" に "+enemy.power+" ダメージ！");
   });
+  if(isGearOn("tasukete") && !onceGearActive.tasukete){
+    const fallen=active.find(target=>battleHP[target.uid]<=0);
+    if(fallen){
+      const maxHP=statsOf(fallen).hp;
+      battleHP[fallen.uid]=Math.max(1,Math.round(maxHP*0.15));
+      onceGearActive.tasukete=true;
+      log("🦖 助けて失神する！ "+getCharacter(fallen.id).name+" がHP15%で復活！");
+      saveGame();
+    }
+  }
   renderBattleHP();
   const alive=active.filter(target=>battleHP[target.uid]>0);
   if(alive.length===0){loseBattle();return}
@@ -1823,6 +2027,14 @@ function updateEventLoop(){
 loadGame();
 render();
 renderRarityDebug();
+beanDollarTimer=setInterval(()=>{
+  const rate=getEquippedBeanDollarRate();
+  if(rate>0){
+    beanDollars+=rate;
+    saveGame();
+  }
+  renderBeanDollarStatus();
+},1000);
 eventTimer=setInterval(updateEventLoop,1000);
 
 let titleClickCount=0;
