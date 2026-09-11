@@ -899,6 +899,13 @@ function setAutoSellLowRarity(enabled){
   toast(autoSellLowRarity ? "💰 コモン・レア★0：自動売却ON" : "💰 自動売却：OFF");
 }
 
+function renderSettings(){
+  const drop=document.getElementById("showDropOverlaySetting");
+  if(drop)drop.checked=showDropOverlaySetting;
+  const autoSell=document.getElementById("autoSellLowRaritySetting");
+  if(autoSell)autoSell.checked=autoSellLowRarity;
+}
+
 function placeholderImage(c){
   const text=encodeURIComponent((c.rarity==="シークレット"?"🕵️ ":"")+"🧠 "+c.name);
   return "data:image/svg+xml;charset=UTF-8,"+
