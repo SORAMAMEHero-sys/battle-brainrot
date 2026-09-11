@@ -993,7 +993,8 @@ function calculateStrength(item){
 }
 
 function sortCharactersByStrength(list){
-  return [...list].sort((a, b) => {
+  // 古い/不正なセーブ項目が1件混ざっていても、表示全体を止めない
+  return [...list].filter(item=>item && getCharacter(item.id)).sort((a, b) => {
     const sa = statsOf(a);
     const sb = statsOf(b);
     const totalA = sa.hp + sa.power;
@@ -1170,11 +1171,18 @@ function renderTotals(){
 
 function renderInventory(){
   const box=document.getElementById("characterList");
-  if(!inventory.length){box.innerHTML="<div class='small'>所持キャラなし</div>";return}
-  box.innerHTML="";
+  if(!box)return;
   const sortedList = sortCharactersByStrength(inventory);
+  if(!sortedList.length){
+    box.innerHTML=inventory.length ? "<div class='small'>表示できる所持キャラがありません</div>" : "<div class='small'>所持キャラなし</div>";
+    return;
+  }
+  // 途中で1件が壊れていても、他のキャラは最後まで表示する
+  const fragment=document.createDocumentFragment();
   sortedList.forEach(item=>{
-    const c=getCharacter(item.id),s=statsOf(item),isEq=equipped.includes(item.uid);
+    const c=getCharacter(item.id);
+    if(!c)return;
+    const s=statsOf(item),isEq=equipped.includes(item.uid);
     const current=battleRunning&&battleHP[item.uid]!=null?Math.max(0,Math.round(battleHP[item.uid])):s.hp;
     const div=document.createElement("div");
     div.className="card"+(isEq?" equipped":"");
@@ -1199,8 +1207,9 @@ function renderInventory(){
         div.innerHTML+="<button onclick=\"cancelBook('"+item.uid+"','"+bookKey+"')\">📖 "+SKILL_BOOKS[bookKey].name+"を取り消す（1000G）</button>";
       });
     }
-    box.appendChild(div);
+    fragment.appendChild(div);
   });
+  box.replaceChildren(fragment);
 }
 
 function renderEncyclopedia(){
@@ -1785,13 +1794,20 @@ function stopBattle(){
 function playerAttack(){
   if(!battleRunning||!enemy)return;
   let damage=0;
+  const attacks=[];
   equipped.forEach(itemUid=>{
     const item=getOwned(itemUid);
-    if(item&&battleHP[item.uid]>0)damage+=statsOf(item).power*getBattleAttackMultiplier(item.uid);
+    if(!item || battleHP[item.uid]<=0)return;
+    const c=getCharacter(item.id);
+    if(!c)return;
+    const dealt=statsOf(item).power*getBattleAttackMultiplier(item.uid);
+    damage+=dealt;
+    attacks.push(c.name+" ★"+item.star+" → "+Math.round(dealt)+"ダメージ");
   });
   if(damage<=0)return;
   enemy.currentHP-=damage;
-  log("⚔️ 味方が合計"+damage+"ダメージ！");
+  attacks.forEach(text=>log("⚔️ "+text));
+  log("💥 味方合計："+Math.round(damage)+"ダメージ！");
   if(enemy.currentHP<=0){winEnemy();return}
   renderEnemy();renderTotals();renderInventory();
 }
