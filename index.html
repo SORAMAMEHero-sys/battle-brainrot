@@ -1426,6 +1426,28 @@ function toggleEquip(itemUid){
   render();
 }
 
+function getSellBaseGold(rarity){
+  const values = {
+    "コモン":10,
+    "レア":30,
+    "ゴット":100,
+    "シークレット":500,
+    "エクストラ":1500,
+    "Extra":1500,
+    "クラフト専用":1
+  };
+
+  return values[rarity] ?? 1;
+}
+
+function getSellGold(item){
+  const c=getCharacter(item.id);
+  if(!c)return 0;
+
+  const base=getSellBaseGold(c.rarity);
+  return Math.floor(base * Math.pow(1.5, item.star || 0));
+}
+
 function sellCharacter(itemUid){
   const item=getOwned(itemUid);if(!item)return;
   const c=getCharacter(item.id);
