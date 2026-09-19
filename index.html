@@ -63,6 +63,11 @@ h1,h2,h3{margin:5px 0 10px}
 .gear-card button:disabled{opacity:.45;cursor:not-allowed}
 .bean-box{background:#101010;border:1px solid #555;border-radius:10px;padding:10px;margin:8px 0}
 @keyframes pop{0%{transform:scale(.4);opacity:0}100%{transform:scale(1);opacity:1}}
+
+#adminEventOverlay{display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,.88);align-items:flex-start;justify-content:center;padding:18px;pointer-events:none}
+#adminEventOverlay.show{display:flex}
+#adminEventMessage{width:min(900px,96vw);margin-top:4px;background:#171717;border:3px solid #fff;border-radius:18px;padding:18px 20px;text-align:center;font-size:clamp(20px,4vw,34px);font-weight:bold;line-height:1.45;box-shadow:0 0 35px rgba(255,255,255,.25)}
+
 html,
 body{
   width:100%;
@@ -404,6 +409,8 @@ body{
 
 <div id="toast"></div>
 
+<div id="adminEventOverlay" aria-live="polite"><div id="adminEventMessage"></div></div>
+
 <div id="modalBg" class="modal-bg">
   <div class="modal">
     <h3 id="modalTitle"></h3>
@@ -682,7 +689,8 @@ function normalizeItem(item){
     id:item.id,
     star:Number.isFinite(Number(item.star)) ? Math.max(0,Math.min(10,Number(item.star))) : 0,
     mutations:Array.isArray(item.mutations) ? [...new Set(item.mutations.filter(x=>MUTATIONS[x]))] : [],
-    books:Array.isArray(item.books) ? [...new Set(item.books.filter(x=>SKILL_BOOKS[x]))].slice(0,MAX_BOOKS_PER_CHARACTER) : []
+    books:Array.isArray(item.books) ? [...new Set(item.books.filter(x=>SKILL_BOOKS[x]))].slice(0,MAX_BOOKS_PER_CHARACTER) : [],
+    plusLevel:item.plusLevel===2 ? 2 : (item.plusLevel===1 ? 1 : 0)
   };
 }
 
@@ -993,6 +1001,14 @@ function statsOf(item){
   if(books.includes("attackUp"))power*=1.3;
   if(books.includes("extremeAttackUp"))power*=1.75;
 
+  if(item.plusLevel===1){
+    hp*=1.5;
+    power*=1.5;
+  }else if(item.plusLevel===2){
+    hp*=3;
+    power*=3;
+  }
+
   return {hp:Math.round(hp),power:Math.round(power)};
 }
 
@@ -1124,14 +1140,14 @@ function getActiveEvents(now=new Date()){
 }
 
 function mutationKeyPool(){
-  if(adminEventState.active)return Object.keys(MUTATIONS);
+  if(isAdminMutationBoostActive())return Object.keys(MUTATIONS);
   return getActiveEvents().map(x=>x.key);
 }
 
 function rollMutations(){
   const pool=mutationKeyPool();
   if(!pool.length)return [];
-  if(!adminEventState.active && Math.random()>=0.30)return [];
+  if(!isAdminMutationBoostActive() && Math.random()>=0.30)return [];
 
   let count=1;
   const r=Math.random()*100;
@@ -1198,7 +1214,7 @@ function renderInventory(){
     div.innerHTML=
       "<img src='"+imageSrc(c)+"' alt='"+c.name+"'>"+
       "<div class='card-name'>"+c.name+"</div>"+
-      "<div class='card-info'>⭐ ★"+item.star+"<br>レア度："+c.rarity+
+      "<div class='card-info'>⭐ ★"+item.star+(item.plusLevel===2?"　<b>++</b>":item.plusLevel===1?"　<b>+</b>":"")+"<br>レア度："+c.rarity+
       "<br>❤️ HP："+current+" / "+s.hp+
       "<br>⚔️ 火力："+s.power+
       "<br>🔥 Fuse P："+c.fusePoint+"</div>"+
@@ -1409,7 +1425,7 @@ function craftCharacter(resultId){
           toast("💥 クラフト失敗……素材は消費されました");
           return;
         }
-        inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[]});
+        inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[],plusLevel:0});
         encyclopediaUnlocked[resultId]=true;
         saveGame();render();
         toast("🎉 "+result.name+" をクラフトしました！");
@@ -1433,7 +1449,7 @@ function extremeCraftCharacter(resultId){
       ["極クラフトする",()=>{
         closeModal();
         consumeCraftIngredients(recipe);
-        inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[]});
+        inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[],plusLevel:0});
         encyclopediaUnlocked[resultId]=true;
         saveGame();render();
         toast("💀 "+result.name+" を極クラフトしました！");
@@ -1460,7 +1476,7 @@ function renderMachine(){
     const c=getCharacter(item.id);
     const div=document.createElement("button");
     div.className="select-card"+(machineSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+(item.plusLevel===2?" ++":item.plusLevel===1?" +":"")+
       mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFusion(item.uid);
     box.appendChild(div);
@@ -1485,11 +1501,12 @@ function fuseSelected(){
   const newStar=a.star+1;
   const inherited=inheritMutations([a,b]);
   const inheritedBooks=inheritBooksForFusion(a,b);
+  const inheritedPlus=Math.max(a.plusLevel||0,b.plusLevel||0);
   inventory=inventory.filter(x=>x.uid!==a.uid&&x.uid!==b.uid);
   equipped=equipped.filter(x=>x!==a.uid&&x!==b.uid);
   delete battleHP[a.uid];delete battleHP[b.uid];
 
-  inventory.push({uid:uid(),id:a.id,star:newStar,mutations:inherited,books:inheritedBooks});
+  inventory.push({uid:uid(),id:a.id,star:newStar,mutations:inherited,books:inheritedBooks,plusLevel:inheritedPlus});
   encyclopediaUnlocked[a.id]=true;
   saveGame();
   machineSelection=[];render();
@@ -1530,7 +1547,7 @@ function renderFuseMachine(){
   sortedList.forEach(item=>{
     const c=getCharacter(item.id),div=document.createElement("button");
     div.className="select-card"+(fuseSelection.includes(item.uid)?" selected":"");
-    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+
+    div.innerHTML="<img src='"+imageSrc(c)+"'><b>"+c.name+"</b><br>★"+item.star+(item.plusLevel===2?" ++":item.plusLevel===1?" +":"")+
       "<br>🔥 "+c.fusePoint+"P"+mutationHTML(item.mutations)+bookHTML(item.books);
     div.onclick=()=>selectForFuseMachine(item.uid);
     box.appendChild(div);
@@ -1568,7 +1585,7 @@ function fuseMachineExecute(){
   equipped=equipped.filter(x=>!selectedIds.has(x));
   fuseSelection.forEach(x=>delete battleHP[x]);
 
-  inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[]});
+  inventory.push({uid:uid(),id:resultId,star:0,mutations:[],books:[],plusLevel:0});
   encyclopediaUnlocked[resultId]=true;
   saveGame();
   const result=getCharacter(resultId);
@@ -1731,7 +1748,7 @@ function createEnemy(){
   enemy={
     id:c.id,name:c.name,rarity:c.rarity,image:c.image,
     hp:gearAdjustedHP,currentHP:gearAdjustedHP,power:c.power,
-    mutations:[]
+    mutations:[],plusLevel:0
   };
 
   playSecretSpawnSound(c);
@@ -1931,57 +1948,98 @@ function toast(text){
 
 function adminEventKey(now=new Date()){
   const d=new Date(now);
-  const day=d.getDay();
-  const minutes=d.getHours()*60+d.getMinutes()+d.getSeconds()/60;
-
-  if(day===0 && minutes>=18*60+30 && minutes<18*60+40)
-    return "weekly-"+d.getFullYear()+"-"+(d.getMonth()+1)+"-"+d.getDate();
-
-  if(d.getFullYear()===2026 && d.getMonth()===8 && d.getDate()===1 &&
-     minutes>=5*60+15 && minutes<5*60+25)
-    return "today-2026-09-01-0515";
-
+  if(d.getFullYear()===2026 && d.getMonth()===8 && d.getDate()===20 &&
+     d.getHours()===9 && d.getMinutes()<5)return "admin-first-2026-09-20-0900";
   return "";
 }
 
 function isAdminEvent(now=new Date()){return !!adminEventKey(now)}
 
-function adminMessages(){
+function adminEventMessages(){
   return [
-    "やあ！",
-    "管理者イベントだね😏",
-    "そろそろかな",
-    "一旦2倍ラックと☀️変異を付けるぜ",
-    "よろしくな",
-    "俺がアドミンのそらまめだ",
-    "さっそくだが",
-    "discord鯖には入ってるか？",
-    "リークとか最新情報が公開されるぜ",
-    "入ってみなよ👀",
-    "なあ😏",
-    "足りないだろ、ラック",
-    "どうだ！3倍ラックだ！",
-    "なんだって？",
-    "変異が足りない？",
-    "ダメだよ、インフレする",
-    "だからやらない",
-    "なんだって？",
-    "ラックが足りない？",
-    "さすがにダメです",
-    "嘘です😏",
-    "じゃあな、来週もお楽しみに"
+    {text:"admin: こんにちは😎"},
+    {text:"admin: 今日は初めての管理者イベントです"},
+    {text:"admin: ……ところで"},
+    {text:"今日はかなり期待していいですよ😏。"},
+    {text:"少しプレゼントを持ってくるから\n少し待っていてくれ😭",after:60000,onShow:()=>startAdminSnapPhase()},
+    {text:"admin: ただいま",onShow:()=>startAdminBoostPhase()},
+    {text:"admin: 持ってきましたが"},
+    {text:"数個しかありませんでした"},
+    {text:"admin: なので確率配布をします👀"},
+    {text:"admin: ということで、プレゼントを配ります🎁"},
+    {text:"admin: GoodLuck👍"},
+    {text:"admin: 50％の「スパゲティトイレ」",after:5000,onShow:()=>adminSequentialReward("spaghetti",0.50,"スパゲッティトイレ")},
+    {text:"admin: 30％の「カネローニドラゴーニ」",after:5000,onShow:()=>adminSequentialReward("caneloni",0.30,"カネローニドラゴーニ")},
+    {text:"admin: 10％の「ゴルゴンジーラ」",after:5000,onShow:()=>adminSequentialReward("gorgonzola",0.10,"ゴルゴンジーラ")},
+    {text:"admin: 5％のグリフィン+",after:5000,onShow:()=>adminSequentialReward("griffin",0.05,"グリフィン+",1)},
+    {text:"admin: そうそう、+が付いたキャラは\nステータスが1.5倍になります👀"},
+    {text:"admin: ++だと3倍です👀"},
+    {text:"admin :そろそろ終わりですかね"},
+    {text:"admin:最後に全員に\nプレゼントを用意しました🎁"},
+    {text:"admin:SPAWN",onShow:()=>adminFinalReward()}
   ];
 }
 
-function showAdminMessage(message){
-  const box=document.getElementById("eventBanner");
-  box.innerHTML="<div style='font-size:20px;text-align:center;font-weight:bold'>"+message+"</div>";
+function showAdminOverlayMessage(message){
+  const overlay=document.getElementById("adminEventOverlay");
+  const box=document.getElementById("adminEventMessage");
+  if(!overlay||!box)return;
+  box.textContent=message;
+  overlay.classList.add("show");
   clearTimeout(adminEventState.messageTimer);
   adminEventState.messageTimer=setTimeout(()=>{
-    if(isAdminEvent()){
-      box.innerHTML="<div class='admin-luck'>👑 管理者イベント中！ Server Luck ×5 ＋ 全変異</div>";
-    }
-  },7000);
+    box.textContent="";
+    overlay.classList.remove("show");
+  },5000);
+}
+
+function adminGrantCharacter(id,plusLevel=0){
+  const c=getCharacter(id);
+  if(!c)return null;
+  const item={uid:uid(),id,star:0,mutations:[],books:[],plusLevel};
+  inventory.push(item);
+  encyclopediaUnlocked[id]=true;
+  saveGame();
+  render();
+  return item;
+}
+
+function adminSequentialReward(id,chance,label,plusLevel=0){
+  if(Math.random()<chance){
+    adminGrantCharacter(id,plusLevel);
+    toast("🎁 当選！ "+label+" を獲得！");
+    log("🎁 管理者イベント："+label+"を獲得！");
+  }else{
+    log("🎁 管理者イベント："+label+"は今回は外れました。");
+  }
+}
+
+function adminFinalReward(){
+  const id=weightedChoice([
+    ["spaghetti",20],
+    ["caneloni",50],
+    ["gorgonzola",20],
+    ["cerberus",10]
+  ]);
+  adminGrantCharacter(id,0);
+  const c=getCharacter(id);
+  toast("🎁 全員プレゼント！ "+c.name+"を獲得！");
+  log("🎁 管理者イベント：最終プレゼント "+c.name+"を獲得！");
+}
+
+function startAdminSnapPhase(){
+  // 「スナップイベント開始(1分)」の1分待機を表すタイマー。
+  adminEventState.snapUntil=Date.now()+60000;
+}
+
+function startAdminBoostPhase(){
+  // 「スナップ5分延長&全変異5分開始」。
+  adminEventState.allMutationUntil=Date.now()+5*60*1000;
+  adminEventState.snapUntil=Math.max(adminEventState.snapUntil||0,Date.now()+5*60*1000);
+}
+
+function isAdminMutationBoostActive(){
+  return adminEventState.active && Number(adminEventState.allMutationUntil||0)>Date.now();
 }
 
 function startAdminEvent(){
@@ -1989,27 +2047,22 @@ function startAdminEvent(){
   if(!key||adminEventState.startedKey===key)return;
   adminEventState.startedKey=key;
   adminEventState.active=true;
+  adminEventState.allMutationUntil=0;
+  adminEventState.snapUntil=0;
 
-  const messages=adminMessages();
+  const messages=adminEventMessages();
   let i=0;
   const next=()=>{
     if(!adminEventState.active || i>=messages.length)return;
-    showAdminMessage(messages[i++]);
-    adminEventState.messageNextTimer=setTimeout(next,10000);
+    const step=messages[i++];
+    showAdminOverlayMessage(step.text);
+    if(typeof step.onShow==="function")step.onShow();
+    // 通常は「表示5秒→消える→5秒待つ→次」。
+    // 特殊なafter指定がある場合はその待機時間を使用。
+    const wait=step.after!=null ? step.after : 10000;
+    adminEventState.messageNextTimer=setTimeout(next,wait);
   };
   next();
-}
-
-function spawnSwagMangoAfterAdmin(){
-  const c=getCharacter("swagmango");
-  if(!c)return;
-  enemy={
-    id:c.id,name:c.name,rarity:c.rarity,image:c.image,
-    hp:c.hp*23,currentHP:c.hp*23,power:c.power,
-    mutations:[]
-  };
-  renderEnemy();
-  log("🥭 管理者イベント終了！スワッグマンゴーが敵として出現！");
 }
 
 function updateAdminEvent(){
@@ -2019,10 +2072,8 @@ function updateAdminEvent(){
     adminEventState.active=false;
     clearTimeout(adminEventState.messageTimer);
     clearTimeout(adminEventState.messageNextTimer);
-    if(adminEventState.endSpawnedKey!==adminEventState.startedKey){
-      adminEventState.endSpawnedKey=adminEventState.startedKey;
-      spawnSwagMangoAfterAdmin();
-    }
+    const overlay=document.getElementById("adminEventOverlay");
+    if(overlay)overlay.classList.remove("show");
   }
 }
 
@@ -2063,7 +2114,7 @@ document.getElementById("gameTitle").addEventListener("click",()=>{
   titleClickCount++;
   if(titleClickCount===67){
     if(!inventory.some(x=>x.id==="sixtyseven")){
-      inventory.push({uid:uid(),id:"sixtyseven",star:0,mutations:[],books:[]});
+      inventory.push({uid:uid(),id:"sixtyseven",star:0,mutations:[],books:[],plusLevel:0});
       encyclopediaUnlocked["sixtyseven"]=true;
       saveGame();render();
       toast("🔢 67 Is Not Over！67を獲得！");
